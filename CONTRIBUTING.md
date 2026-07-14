@@ -6,6 +6,14 @@ example lives in its own top-level directory (currently just
 [`cva6/`](cva6/)) and is a complete Bazel workspace — see that example's
 `README.md` for its architecture, dependencies, and build/run instructions.
 
+## Bugs and feature requests
+
+- **Bugs** are reported via [GitHub Issues](https://github.com/tenstorrent/rv_tester_examples/issues).
+- **Bug fixes and new functionality** are submitted via [Pull Requests](https://github.com/tenstorrent/rv_tester_examples/pulls).
+- Pull requests are reviewed on a **weekly cadence**.
+
+Please also review our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Getting set up
 
 Examples build with **Bazel 7** inside the **cvm** podman image; the system
