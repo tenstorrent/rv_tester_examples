@@ -1,0 +1,64 @@
+# Smoke: run the pre-built cva6_tb_verilator against infinite.elf (an
+# infinite loop at the reset vector) in lockstep with Whisper, terminating
+# after a few instructions. sim.sh applies the stdout error-pattern check.
+exports_files(
+    ["infinite.S", "infinite.elf", "hello_world.elf", "sim.sh"],
+    visibility = ["//visibility:public"],
+)
+
+# hello_world runs to completion and terminates via an HTIF store to `tohost`
+# (eot=tohost), unlike the infinite loop. Its console output (HTIF putchar)
+# appears on stdout / in test.log. PASSES in lockstep against Whisper.
+#
+# The ELF is built rv64ima_zicsr (no F), so its CRT emits no FP register init and
+# it sidesteps the unmapped-FP-write limitation (the harness ties off rv_tester's
+# frd_valid/frd_addr/frd_wdata; see README "Known limitations"). FP-writing
+# programs still trip the arch check until that mapping exists.
+#
+sh_test(
+    name = "hello_world_cva6_verilator",
+    srcs = ["//dv/cva6/testlists:sim.sh"],
+    args = [
+        "$(location //dv/cva6/verilator:cva6_tb_verilator)",
+        "+load=$(location :hello_world.elf)",
+        "+memmap_json_path=$(location //dv/cva6:memmap.json)",
+        "+whisper_json_path=$(location //dv/cva6:whisper.json)",
+        "+nomcm",
+        "+eot=tohost",
+        "+save_all_files",
+    ],
+    data = [
+        "//dv/cva6/verilator:cva6_tb_verilator",
+        "//dv/cva6:memmap.json",
+        "//dv/cva6:whisper.json",
+        ":hello_world.elf",
+    ],
+)
+
+sh_test(
+    name = "infinite_cva6_verilator",
+    srcs = ["//dv/cva6/testlists:sim.sh"],
+    args = [
+        "$(location //dv/cva6/verilator:cva6_tb_verilator)",
+        "+load=$(location :infinite.elf)",
+        "+memmap_json_path=$(location //dv/cva6:memmap.json)",
+        "+whisper_json_path=$(location //dv/cva6:whisper.json)",
+        "+nostandalone",
+        "+eot=max_instr",
+        "+max_instr=8",
+    ],
+    data = [
+        "//dv/cva6/verilator:cva6_tb_verilator",
+        "//dv/cva6:memmap.json",
+        "//dv/cva6:whisper.json",
+        ":infinite.elf",
+    ],
+)
+
+test_suite(
+    name = "all_smoke",
+    tests = [
+        ":infinite_cva6_verilator",
+        ":hello_world_cva6_verilator",
+    ],
+)

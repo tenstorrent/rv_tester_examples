@@ -1,0 +1,9 @@
+# Marks bazel/ as a package so //bazel:*.bzl load and //bazel:cva6.BUILD
+# (the @cva6 overlay) is addressable.
+exports_files(
+    [
+        "cva6.BUILD",
+        "rules_verilator_propagate_exit.patch",
+    ],
+    visibility = ["//visibility:public"],
+)

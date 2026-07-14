@@ -1,0 +1,62 @@
+# REUSE (https://reuse.software) annotations for files that do not carry an
+# inline SPDX header. Hand-written C++/SystemVerilog sources under each example's
+# dv/ carry their own SPDX-FileCopyrightText / SPDX-License-Identifier headers;
+# the entries below cover everything else so the tree is REUSE-compliant.
+# Verify with `reuse lint`.
+version = 1
+
+# --- Build system, CI, config, scripts, and repo metadata --------------------
+# Bazel build files, Starlark, module/lock files, CI, shell scripts, the
+# rules_verilator patch, and project meta files. All authored by Tenstorrent
+# and licensed Apache-2.0; they have no natural place for a comment header or
+# are data/config files.
+[[annotations]]
+path = [
+    ".gitignore",
+    "LICENSE_understanding",
+    "NOTICE",
+    "**/.bazelrc",
+    "**/.gitlab-ci.yml",
+    "**/MODULE.bazel",
+    "**/MODULE.bazel.lock",
+    "**/BUILD.bazel",
+    "**/*.bzl",
+    "**/cva6.BUILD",
+    "**/*.patch",
+    "**/*.sh",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2026 Tenstorrent USA, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# --- rv_tester / core configuration data -------------------------------------
+# Topology / hart / axi attribute YAMLs, memory map + Whisper JSON, the
+# Verilator lint waivers, and the reset-vector assembly fixture.
+[[annotations]]
+path = [
+    "**/*.yml",
+    "**/*.json",
+    "**/*.vlt",
+    "**/*.S",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2026 Tenstorrent USA, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# --- Prebuilt test ELFs (binary fixtures) ------------------------------------
+# Prebuilt RISC-V test programs loaded by the smoke/hello_world tests; binary,
+# so licensing is recorded here rather than inline.
+[[annotations]]
+path = ["**/testlists/*.elf"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2026 Tenstorrent USA, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# --- Documentation -----------------------------------------------------------
+[[annotations]]
+path = [
+    "**/*.md",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "© 2026 Tenstorrent USA, Inc."
+SPDX-License-Identifier = "Apache-2.0"

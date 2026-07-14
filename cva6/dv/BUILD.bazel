@@ -1,0 +1,1 @@
+# Package marker so //dv:verilator_opts.bzl is loadable.
