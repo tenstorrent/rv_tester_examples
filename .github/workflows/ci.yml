@@ -1,0 +1,54 @@
+# GitHub Actions CI for the cva6 example (best effort).
+#
+# This mirrors cva6/.gitlab-ci.yml: it builds the Verilator model and runs the
+# lockstep smoke suite inside the public cvm image (bazel-7 + toolchain).
+#
+# NOTE: on GitHub-hosted runners this WILL fail at the dependency-fetch step.
+# The build pulls rv_tester (and cvm/CoreArchChecker/mem_manager, plus the
+# gitlab-definitions CI include) from the internal aus-gitlab, which cloud
+# runners cannot reach. To make this pass, run it on a self-hosted runner that
+# sits inside the Tenstorrent network (change `runs-on` to `self-hosted`), or
+# wait until the internal deps are publicly mirrored.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: cva6
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tenstorrent/cvm:0.1.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Verilator model
+        run: |
+          bazel-7 --output_user_root=./bazel_output_user_root \
+            build //dv/cva6/verilator:cva6_tb_verilator \
+            --config=bzlmod --jobs=8
+      - name: Clean output root
+        if: always()
+        run: chmod +w -R ./bazel_output_user_root || true
+
+  smoke:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tenstorrent/cvm:0.1.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke (lockstep vs Whisper)
+        run: |
+          bazel-7 --output_user_root=./bazel_output_user_root \
+            test //dv/cva6/testlists:all_smoke \
+            --config=bzlmod --build_tests_only --test_output=errors --jobs=8
+      - name: Clean output root
+        if: always()
+        run: chmod +w -R ./bazel_output_user_root || true
