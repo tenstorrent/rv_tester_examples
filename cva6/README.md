@@ -166,10 +166,14 @@ sim_stdout.log       full sim stdout
 
 ---
 
-## 6. CI (`.gitlab-ci.yml`)
+## 6. CI (`../.gitlab-ci.yml`, `../.github/workflows/ci.yml`)
 
-Mirrors rv_tester's pipeline (cvm image, `bazel-7 --config=bzlmod`, LSF scheduler
-params, `chmod +w` output cleanup). Two jobs in the `test` stage:
+CI config lives at the **repo root** (a level above this example), since both
+GitLab and GitHub only read their pipeline files from the root; the jobs `cd`
+into `cva6/` before invoking Bazel.
+
+The GitLab pipeline mirrors rv_tester's (cvm image, `bazel-7 --config=bzlmod`,
+LSF scheduler params, `chmod +w` output cleanup). Two jobs in the `test` stage:
 
 - **`build`** — `bazel-7 build //dv/cva6/verilator:cva6_tb_verilator` (compile/link signal).
 - **`smoke`** — `bazel-7 test //dv/cva6/testlists:all_smoke` (builds + runs the lockstep test).
