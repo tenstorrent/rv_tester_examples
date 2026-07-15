@@ -1,9 +1,8 @@
 # cva6
 
 Run the open-source [CVA6](https://github.com/openhwgroup/cva6) RISC-V core under
-Tenstorrent's [`rv_tester`](https://aus-gitlab.local.tenstorrent.com/riscv/dv/rv_tester)
-testbench, checking it **instruction-by-instruction against the Whisper ISS in
-lockstep**. Target simulator: **Verilator**.
+Tenstorrent's `rv_tester` testbench, checking it **instruction-by-instruction
+against the Whisper ISS in lockstep**. Target simulator: **Verilator**.
 
 Both CVA6 and rv_tester are pulled in as **Bazel dependencies** — there are no git
 submodules in this repo. Everything below (RTL, the ISS, the checkers, the
