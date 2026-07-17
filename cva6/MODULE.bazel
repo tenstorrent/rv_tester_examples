@@ -1,13 +1,19 @@
 module(name = "cva6_with_rvtester", version = "0.0.0")
 
 # ---------------------------------------------------------------------------
-# rv_tester — the testbench, pulled straight from aus-gitlab.
+# rv_tester — the testbench, pulled from the public github mirror.
+# archive_override (not git_override) so we can patch rv_tester's external-dep
+# declarations to fetch cvm / CoreArchChecker / mem-manager from their public
+# github.com/tenstorrent mirrors instead of the internal aus-gitlab archives.
 # ---------------------------------------------------------------------------
 bazel_dep(name = "rv_tester", version = "0.0.0")
-git_override(
+archive_override(
     module_name = "rv_tester",
-    remote = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/rv_tester.git",
-    commit = "ec1463b143b52f4874ada4e799adda99764b1852",
+    urls = ["https://github.com/tenstorrent/rv_tester/archive/32063987df88be766083d6914c8d187fcc8a9498.tar.gz"],
+    strip_prefix = "rv_tester-32063987df88be766083d6914c8d187fcc8a9498",
+    integrity = "sha256-axZ3oi561MWVdJkFwoHt6fuLq4TfU5JFc3//qX4D/wI=",
+    patches = ["//bazel:rv_tester_public_deps.patch"],
+    patch_strip = 1,
 )
 
 # ---------------------------------------------------------------------------

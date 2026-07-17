@@ -583,7 +583,7 @@
     },
     "@@rv_tester~//bazel:external_deps_ext.bzl%rv_tester_external_deps_ext": {
       "general": {
-        "bzlTransitiveDigest": "0wv/LLETVbE+lWuwdV9NhqNroNDYLSVVmSsMBk6P6rk=",
+        "bzlTransitiveDigest": "WArFRefRhkhrwgjP2Idkf4hBjLCsKq3yKgyo9YxqJXA=",
         "usagesDigest": "spnuDKqJy0dW4AsZ9hMq5BnYsSVJ9jAt2LZy9BbGAwQ=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -593,36 +593,36 @@
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_archive",
             "attributes": {
-              "sha256": "94a7f33c98ab1025b99ea9df342af1de24a1d9bba4ec0784016b52fa97a8ff0c",
-              "strip_prefix": "cvm-a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc",
-              "url": "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc/cvm-a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc.tar.bz2"
+              "sha256": "1a09908cab1ffc5b40440fb6cd5f7756e82fdde9ca154726a289e7a6af07941e",
+              "strip_prefix": "CVM-a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc",
+              "url": "https://github.com/tenstorrent/cvm/archive/a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc.tar.gz"
             }
           },
           "rules_hdl": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_archive",
             "attributes": {
-              "sha256": "94a7f33c98ab1025b99ea9df342af1de24a1d9bba4ec0784016b52fa97a8ff0c",
-              "strip_prefix": "cvm-a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc/bazel/rules_hdl_compat",
-              "url": "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc/cvm-a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc.tar.bz2"
+              "sha256": "1a09908cab1ffc5b40440fb6cd5f7756e82fdde9ca154726a289e7a6af07941e",
+              "strip_prefix": "CVM-a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc/bazel/rules_hdl_compat",
+              "url": "https://github.com/tenstorrent/cvm/archive/a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc.tar.gz"
             }
           },
           "CoreArchChecker": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_archive",
             "attributes": {
-              "sha256": "cf897b3945d6aafe3a00831bf33adf004f3e1821020aab806ccc27c601ebf311",
+              "sha256": "b44a5d3ede147a6bf21f0251e375c3f8729d5eaffc0a18d31e0b0cd179bd5cfc",
               "strip_prefix": "CoreArchChecker-d1d38af45ebddf8aa54a510b2b62196f19555109",
-              "url": "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/d1d38af45ebddf8aa54a510b2b62196f19555109/CoreArchChecker-d1d38af45ebddf8aa54a510b2b62196f19555109.tar.bz2"
+              "url": "https://github.com/tenstorrent/CoreArchChecker/archive/d1d38af45ebddf8aa54a510b2b62196f19555109.tar.gz"
             }
           },
           "mem_manager": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_archive",
             "attributes": {
-              "sha256": "271bbbf8f0afa96f42539825b7e513611f16820835e7406dd48bb249ca60ac49",
-              "strip_prefix": "mem-manager-c3975c0eafa40e765c645abdc3001e419002e9cc",
-              "url": "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/c3975c0eafa40e765c645abdc3001e419002e9cc/mem-manager-c3975c0eafa40e765c645abdc3001e419002e9cc.tar.bz2",
+              "sha256": "726a7e1e899e8ca61fb435d59541a6d9f3b3dcfe081f97999de4bb10a2540b92",
+              "strip_prefix": "mem-manager-7775edbd961c17f42bd561f680da85d4aab437c5",
+              "url": "https://github.com/tenstorrent/mem-manager/archive/7775edbd961c17f42bd561f680da85d4aab437c5.tar.gz",
               "patches": [
                 "@@rv_tester~//bazel:mem_manager_use_bcr_lz4.patch"
               ],

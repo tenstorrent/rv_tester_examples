@@ -1,0 +1,62 @@
+Repoint rv_tester's external deps (cvm, CoreArchChecker, mem-manager) from the
+internal aus-gitlab GitLab archives to their public github.com/tenstorrent
+mirrors so the tree builds outside Tenstorrent's network.
+
+- cvm / CoreArchChecker: same pinned commit, github .tar.gz archive + sha256.
+  The github archive top-level dir for cvm is "CVM-<commit>", so strip_prefix
+  is updated to match.
+- mem-manager: internal pin is not published; re-pinned to the public HEAD
+  (7775edbd) with the matching github .tar.gz sha256. The lz4 BUILD patch still
+  applies cleanly.
+
+--- a/bazel/external_deps.bzl
++++ b/bazel/external_deps.bzl
+@@ -40,20 +40,20 @@
+     # One pinned cvm tarball, fetched twice — once for @cvm (full tree),
+     # once for @rules_hdl (the rules_hdl_compat shim sub-dir).
+     cvm_hash = "a530db28d8c78d50f4c64e6a49df6ef14e3cb7cc"
+-    sha256 = "94a7f33c98ab1025b99ea9df342af1de24a1d9bba4ec0784016b52fa97a8ff0c"
+-    cvm_url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit = cvm_hash)
++    sha256 = "1a09908cab1ffc5b40440fb6cd5f7756e82fdde9ca154726a289e7a6af07941e"
++    cvm_url = "https://github.com/tenstorrent/cvm/archive/{commit}.tar.gz".format(commit = cvm_hash)
+     maybe(
+         http_archive,
+         name = "cvm",
+         sha256 = sha256,
+-        strip_prefix = "cvm-{commit}".format(commit = cvm_hash),
++        strip_prefix = "CVM-{commit}".format(commit = cvm_hash),
+         url = cvm_url,
+     )
+     maybe(
+         http_archive,
+         name = "rules_hdl",
+         sha256 = sha256,
+-        strip_prefix = "cvm-{commit}/bazel/rules_hdl_compat".format(commit = cvm_hash),
++        strip_prefix = "CVM-{commit}/bazel/rules_hdl_compat".format(commit = cvm_hash),
+         url = cvm_url,
+     )
+ 
+@@ -94,18 +94,18 @@
+     maybe(
+         http_archive,
+         name = "CoreArchChecker",
+-        sha256 = "cf897b3945d6aafe3a00831bf33adf004f3e1821020aab806ccc27c601ebf311",
++        sha256 = "b44a5d3ede147a6bf21f0251e375c3f8729d5eaffc0a18d31e0b0cd179bd5cfc",
+         strip_prefix = "CoreArchChecker-{commit}".format(commit = CoreArchChecker_hash),
+-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit = CoreArchChecker_hash),
++        url = "https://github.com/tenstorrent/CoreArchChecker/archive/{commit}.tar.gz".format(commit = CoreArchChecker_hash),
+     )
+ 
+-    mem_manager_hash = "c3975c0eafa40e765c645abdc3001e419002e9cc"
++    mem_manager_hash = "7775edbd961c17f42bd561f680da85d4aab437c5"
+     maybe(
+         http_archive,
+         name = "mem_manager",
+-        sha256 = "271bbbf8f0afa96f42539825b7e513611f16820835e7406dd48bb249ca60ac49",
++        sha256 = "726a7e1e899e8ca61fb435d59541a6d9f3b3dcfe081f97999de4bb10a2540b92",
+         strip_prefix = "mem-manager-{commit}".format(commit = mem_manager_hash),
+-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit = mem_manager_hash),
++        url = "https://github.com/tenstorrent/mem-manager/archive/{commit}.tar.gz".format(commit = mem_manager_hash),
+         patches = ["@rv_tester//bazel:mem_manager_use_bcr_lz4.patch"],
+         patch_args = ["-p1"],
+     )
