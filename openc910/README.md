@@ -173,15 +173,24 @@ network access to github.com + the Bazel Central Registry). See `cva6/README.md`
 
 ## 6. Status / known limitations
 
-- **RVFI is Stage A** as delivered (see §3): `valid`/`pc`/`mode` are wired; the
-  `insn`/`rd`/`mem`/`trap` taps are structured and documented but tied off, so
-  full arch-value lockstep needs Stages B–D wired to the exact C910 internal
-  nets. This is the remaining core-integration work.
+- **Both smoke tests PASS** in Whisper lockstep (`//dv/openc910/testlists:all_smoke`):
+  `infinite` and `hello_world` (the latter runs the full program to the HTIF
+  `tohost` store — "Hello world!" on stdout, ~1.3M retirements checked in
+  lockstep). RVFI Stages A–D are wired (see §3); only store `mem_wdata` and the
+  `insn` word remain approximate/tied off, which the current smokes don't require.
+- **Cold-boot bring-up (required to fetch the reset vector):** two C910-specific
+  edits in `openc910_rvfi.patch`, both found via waveform debug:
+  - `mmu/rtl/sysmap.h` PMA remap so `0x8000_0000` is normal cacheable-executable
+    memory. The sysmap compares `PA[39:12]` (4 KB units): a `0x8000_0000` fetch
+    looks up `0x80000`, so the region bases are `BASE0=0x02000` (boot, exec),
+    `BASE1=0x80000` (MMIO `0x0200_0000`–`0x8000_0000`, device),
+    `BASE2=0x100000` (DRAM `0x8000_0000`+, exec).
+  - `cp0/rtl/ct_cp0_regs.v`: `mhcr.IE/DE` reset to 1 (I/D cache enabled at reset),
+    since C910 cannot fetch cacheable memory with the icache off and there is no
+    cold-executable uncached region.
 - **Interrupts** (PLIC/CLINT external lines) are tied off for smoke bring-up;
   C910 has an internal CLINT fed by the harness `sys_cnt` counter.
-- **Verification of the Bazel build** requires the cvm podman image + network and
-  has not been run in this environment. What *has* been validated here:
-  `ct_rvfi_gen.v` lints clean (slang), the RVFI patch applies cleanly to a fresh
-  upstream checkout (`git apply --check`), the patched core files introduce no new
-  syntax errors from the RVFI edits, and the `openc910.BUILD` source list is
-  derived verbatim from the upstream `C910_asic_rtl.fl` filelist.
+- **Runtime**: the Verilated C910 cosim is slow — `hello_world` takes ~40 min, so
+  the smoke tests default to `timeout = "eternal"`. Waveform dumping is opt-in via
+  `+dbg` (see `sim.sh`); a whole-run VCD is multi-GB, so prefer `+dbg=<on>:<off>`
+  over a narrow cycle window.

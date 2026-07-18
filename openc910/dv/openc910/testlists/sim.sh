@@ -15,16 +15,35 @@ set -o pipefail
 LOG=$(mktemp)
 trap 'rm -f "$LOG"' EXIT
 
-# Pull out the +save_all_files control flag; it's consumed here and NOT
-# forwarded to the sim (which would reject an unknown plusarg).
+# Pull out control flags consumed here and NOT forwarded to the sim (it would
+# reject unknown plusargs):
+#   +save_all_files  archive run artifacts even on a clean pass.
+#   +dbg[=on:off]    enable the VCD waveform dump (dump.vcd). The model is built
+#                    trace-capable (trace_mode="vcd"); dumping itself is gated at
+#                    runtime by +vcd_cycle_on=, so we only pass it when +dbg is
+#                    given. Optional on:off cycle window, e.g. +dbg=2000:2300
+#                    (default: dump the whole run from cycle 0).
 save_all=0
 args=()
 for a in "$@"; do
-    if [ "$a" = "+save_all_files" ]; then
-        save_all=1
-    else
-        args+=("$a")
-    fi
+    case "$a" in
+        +save_all_files)
+            save_all=1
+            ;;
+        +dbg)
+            args+=("+vcd_cycle_on=0")
+            save_all=1
+            ;;
+        +dbg=*)
+            win="${a#+dbg=}"
+            args+=("+vcd_cycle_on=${win%%:*}")
+            [ "$win" != "${win#*:}" ] && args+=("+vcd_cycle_off=${win#*:}")
+            save_all=1
+            ;;
+        *)
+            args+=("$a")
+            ;;
+    esac
 done
 
 # rv_tester writes per-run logs relative to CWD; snapshot it so we can pick up

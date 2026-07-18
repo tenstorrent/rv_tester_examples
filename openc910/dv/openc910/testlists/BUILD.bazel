@@ -11,6 +11,9 @@ exports_files(
 sh_test(
     name = "hello_world_openc910_verilator",
     srcs = ["//dv/openc910/testlists:sim.sh"],
+    # C910 is a large OoO core; the Verilated cosim run is slow (and slower with
+    # +dbg VCD dumping), so give the smoke tests a generous default timeout.
+    timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
         "+load=$(location :hello_world.elf)",
@@ -31,6 +34,7 @@ sh_test(
 sh_test(
     name = "infinite_openc910_verilator",
     srcs = ["//dv/openc910/testlists:sim.sh"],
+    timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
         "+load=$(location :infinite.elf)",

@@ -21,12 +21,21 @@ verilog_library(
 verilator_cc_library(
     name = "openc910_tb_veri_lib",
     module = "openc910_top",
+    trace_mode = "vcd",
     vopts = OPENC910_VOPTS,
 )
 
 cc_binary(
     name = "openc910_tb_verilator",
     srcs = ["@rv_tester//test/sw_testbench:sw_tb.cpp"],
+    # sw_tb.cpp gates its VCD dump code on VERILATOR_WAVES/VERILATOR_VCD (rv_tester
+    # naming). The model is built trace-capable via verilator_cc_library
+    # trace_mode="vcd"; define these so the dump path is compiled in. Runtime
+    # dumping stays opt-in (sim.sh maps +dbg -> +vcd_cycle_on).
+    copts = [
+        "-DVERILATOR_WAVES",
+        "-DVERILATOR_VCD",
+    ],
     deps = [
         ":openc910_tb_veri_lib",
         "//dv/openc910:dpi_glue",
