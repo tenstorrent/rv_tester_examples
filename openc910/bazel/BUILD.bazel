@@ -1,0 +1,11 @@
+# Marks bazel/ as a package so //bazel:*.bzl load and //bazel:openc910.BUILD
+# (the @openc910 overlay), the RVFI patch, and the verilator patch are
+# addressable from the openc910_ext module extension.
+exports_files(
+    [
+        "openc910.BUILD",
+        "openc910_rvfi.patch",
+        "rules_verilator_propagate_exit.patch",
+    ],
+    visibility = ["//visibility:public"],
+)

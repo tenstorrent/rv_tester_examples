@@ -1,0 +1,56 @@
+load("@cvm//:defs.bzl", "topology_gen")
+load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
+
+# top.sv / openc910_test_harness.sv go through exports_files (consumed by the
+# verilog_library in the //dv/openc910/verilator sub-package, kept separate so
+# this package doesn't load @rules_verilator). sw_tb.cpp #includes the
+# per-harness Vtop.h, so it is compiled inside the cc_binary there.
+exports_files(
+    [
+        "top.sv",
+        "openc910_test_harness.sv",
+        "memmap.json",
+        "whisper.json",
+        "openc910_verilator_config.vlt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# gflags plusarg definitions the cvm plusargs layer needs at link time.
+cc_library(
+    name = "dpi_glue",
+    srcs = ["gflags.cpp"],
+    deps = ["@cvm//:plusargs"],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//dv/openc910/verilator:__pkg__"],
+)
+
+# Concatenate the rv_tester platform/hart/axi attrs + the top-level topology
+# into a single topology the generators consume.
+topology_gen(
+    name = "openc910_topology",
+    srcs = [
+        "@rv_tester//src/transactors/axi_sw:axi_sw_attrs.yml",
+        "openc910_rv_tester_platform.yml",
+        "openc910_rv_tester_hart.yml",
+        "rv_tester_axi.yml",
+        "@rv_tester//src:rv_tester_topology",
+        "openc910_topology.yml",
+    ],
+)
+
+# Materializes the rv_tester SV (harness macros + rv_tester_params + module),
+# DPI, cosim, sysmod, etc. for this topology.
+rv_tester_gen(
+    name = "openc910_rv_tester",
+    topology = "openc910_topology",
+    csr_spec = "@rv_tester//scripts/csr:csr_spec",
+    project_overrides = "@rv_tester//scripts:project_overrides",
+    pmu_spec = "@rv_tester//src/pmu:pmu_spec",
+    cc_attrs = {
+        "alwayslink": True,
+        "linkstatic": True,
+    },
+    visibility = ["//dv/openc910/verilator:__pkg__"],
+)

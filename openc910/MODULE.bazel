@@ -1,0 +1,108 @@
+module(name = "openc910_with_rvtester", version = "0.0.0")
+
+# ---------------------------------------------------------------------------
+# rv_tester — the testbench, pulled from the public github mirror.
+# archive_override (not git_override) so we can patch rv_tester's external-dep
+# declarations to fetch cvm / CoreArchChecker / mem-manager from their public
+# github.com/tenstorrent mirrors instead of the internal aus-gitlab archives.
+# ---------------------------------------------------------------------------
+bazel_dep(name = "rv_tester", version = "0.0.0")
+archive_override(
+    module_name = "rv_tester",
+    urls = ["https://github.com/tenstorrent/rv_tester/archive/32063987df88be766083d6914c8d187fcc8a9498.tar.gz"],
+    strip_prefix = "rv_tester-32063987df88be766083d6914c8d187fcc8a9498",
+    integrity = "sha256-axZ3oi561MWVdJkFwoHt6fuLq4TfU5JFc3//qX4D/wI=",
+    patches = [
+        "//bazel:rv_tester_public_deps.patch",
+        # Add a 128-bit (16-byte) read path to the axi_sw memory model; upstream
+        # only wires 64/256/512-bit. C910's biu master is 128-bit.
+        "//bazel:rv_tester_axi_sw_128.patch",
+    ],
+    patch_strip = 1,
+)
+
+# ---------------------------------------------------------------------------
+# BCR / toolchain deps.  These mirror rv_tester's own MODULE.bazel: because
+# git_override / archive_override / single_version_override are honoured ONLY
+# in the ROOT module, rv_tester (a dependency here) cannot apply its own
+# overrides — the root has to re-declare them.
+# ---------------------------------------------------------------------------
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "rules_cc", version = "0.0.9")
+bazel_dep(name = "fmt", version = "9.1.0")
+
+# Upstream Verilator + verilog_library rules (same pins as rv_tester/cvm).
+bazel_dep(name = "rules_verilator", version = "1.1.0")
+bazel_dep(name = "rules_verilog", version = "1.1.0")
+
+# Patch rules_verilator's process wrapper to propagate verilator's exit code
+# (root-only single_version_override; patch lives in @rv_tester).
+single_version_override(
+    module_name = "rules_verilator",
+    version = "1.1.0",
+    patches = ["//bazel:rules_verilator_propagate_exit.patch"],
+    patch_strip = 1,
+)
+# Reuse cvm's verilator pin.
+single_version_override(
+    module_name = "verilator",
+    version = "5.046",
+)
+
+bazel_dep(name = "whisper", version = "0.0.0")
+git_override(
+    module_name = "whisper",
+    commit = "1edc51d170f06e461592d579be8c6f3e2b03d41a",
+    remote = "https://github.com/tenstorrent/whisper",
+)
+
+# erenon/bazel_clang_tidy — root-only archive_override (rv_tester's .bazelrc
+# clang-tidy aspect references it).
+bazel_dep(name = "bazel_clang_tidy", version = "0.0.0")
+archive_override(
+    module_name = "bazel_clang_tidy",
+    urls = ["https://github.com/erenon/bazel_clang_tidy/archive/db677011c7363509a288a9fb3bf0a50830bbf791.tar.gz"],
+    strip_prefix = "bazel_clang_tidy-db677011c7363509a288a9fb3bf0a50830bbf791",
+    integrity = "sha256-cjoiSKMv0j33LPlj9Kf0BEBYy9wJoa1+jvZ/0WwHM0Y=",
+)
+
+# Python toolchain - 3.9 to match cvm/whisper requirements.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.9",
+)
+
+# Verilator toolchain via rules_verilator extension.
+verilator_ext = use_extension("@rules_verilator//:extensions.bzl", "verilator")
+use_repo(verilator_ext, "verilator")
+
+# ---------------------------------------------------------------------------
+# rv_tester's non-bzlmod externals (cvm, rules_hdl, CoreArchChecker,
+# mem_manager, opensrc-axi, nlohmann-json).  Reuse rv_tester's own extension
+# so the pins stay in one place.
+# ---------------------------------------------------------------------------
+rv_tester_external = use_extension("@rv_tester//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")
+use_repo(
+    rv_tester_external,
+    "CoreArchChecker",
+    "cvm",
+    "mem_manager",
+    "opensrc-axi",
+    "opensrc-nlohmann-json",
+    "rules_hdl",
+)
+
+# NOTE: the rv_tester_pypi / cvm_pypi pip hubs are declared by @rv_tester and
+# @cvm respectively; their own targets consume them, so we must NOT re-declare
+# them here (pip hub names must be unique across modules).
+
+# ---------------------------------------------------------------------------
+# openc910 — stock XUANTIE-RV/openc910 from GitHub, with an in-repo BUILD
+# overlay (upstream ships no Bazel) and an RVFI patch applied on top of the
+# fetched RTL.  See //bazel:openc910_ext.bzl.
+# ---------------------------------------------------------------------------
+openc910_ext = use_extension("//bazel:openc910_ext.bzl", "openc910_ext")
+use_repo(openc910_ext, "openc910")

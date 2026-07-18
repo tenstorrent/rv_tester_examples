@@ -36,3 +36,23 @@ smoke:
     after_script:
         - chmod +w -R ./cva6/bazel_output_user_root
     timeout: 3h
+
+build_openc910:
+    stage: test
+    extends:
+        - .test-template
+    script:
+        - cd openc910 && bazel-7 --output_user_root=./bazel_output_user_root build //dv/openc910/verilator:openc910_tb_verilator --config=bzlmod ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./openc910/bazel_output_user_root
+    timeout: 3h
+
+smoke_openc910:
+    stage: test
+    extends:
+        - .test-template
+    script:
+        - cd openc910 && bazel-7 --output_user_root=./bazel_output_user_root test //dv/openc910/testlists:all_smoke --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
+    after_script:
+        - chmod +w -R ./openc910/bazel_output_user_root
+    timeout: 3h

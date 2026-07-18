@@ -1,0 +1,34 @@
+diff --git a/src/transactors/axi_sw/axi_sw.h b/src/transactors/axi_sw/axi_sw.h
+index 8cafb3f..980b1f1 100644
+--- a/src/transactors/axi_sw/axi_sw.h
++++ b/src/transactors/axi_sw/axi_sw.h
+@@ -65,6 +65,7 @@ inline bool axi_sw_destroyed = false;
+ extern "C" {
+ void axi_sw_b(axi::id_t id, axi::resp_t resp, uint16_t latency);
+ void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
++void axi_sw_r_16(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+ void axi_sw_r_32(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+ void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last, uint16_t latency);
+ }
+@@ -409,6 +410,9 @@ private:
+       case 64:
+         _axi_sw::axi_sw_r_8(r.id, r.resp, r.data.data(), r.last, latency);
+         break;
++      case 128:
++        _axi_sw::axi_sw_r_16(r.id, r.resp, r.data.data(), r.last, latency);
++        break;
+       case 256:
+         _axi_sw::axi_sw_r_32(r.id, r.resp, r.data.data(), r.last, latency);
+         break;
+diff --git a/src/transactors/axi_sw/axi_sw.sv b/src/transactors/axi_sw/axi_sw.sv
+index 7468415..51c1784 100644
+--- a/src/transactors/axi_sw/axi_sw.sv
++++ b/src/transactors/axi_sw/axi_sw.sv
+@@ -213,6 +213,7 @@ module axi_sw #(
+         export "DPI-C" function axi_sw_r_``S;
+ 
+   `AXI_SW_R_SIZED(8)
++  `AXI_SW_R_SIZED(16)
+   `AXI_SW_R_SIZED(32)
+   `AXI_SW_R_SIZED(64)
+ 

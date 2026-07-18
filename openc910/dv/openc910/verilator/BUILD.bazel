@@ -1,0 +1,39 @@
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("//dv:verilator_opts.bzl", "OPENC910_VOPTS")
+
+# Verilator side, split from //dv/openc910 so that package stays loadable
+# without @rules_verilator / @rules_hdl.
+
+verilog_library(
+    name = "openc910_top",
+    srcs = [
+        "//dv/openc910:top.sv",
+        "//dv/openc910:openc910_test_harness.sv",
+    ],
+    deps = [
+        "//dv/openc910:openc910_rv_tester_sv",
+        "@openc910//:openc910_core",
+    ],
+    top_module = "top",
+)
+
+verilator_cc_library(
+    name = "openc910_tb_veri_lib",
+    module = "openc910_top",
+    vopts = OPENC910_VOPTS,
+)
+
+cc_binary(
+    name = "openc910_tb_verilator",
+    srcs = ["@rv_tester//test/sw_testbench:sw_tb.cpp"],
+    deps = [
+        ":openc910_tb_veri_lib",
+        "//dv/openc910:dpi_glue",
+        "//dv/openc910:openc910_rv_tester_dpi",
+        "@cvm//:logger",
+        "@cvm//:topology",
+        "@rules_verilator//verilator:verilated_runtime",
+    ],
+    visibility = ["//visibility:public"],
+)
