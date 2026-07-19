@@ -34,20 +34,23 @@ def _openc910_repo_impl(ctx):
     for f in ctx.attr.rvfi_srcs:
         ctx.symlink(f, "rvfi/rtl/" + f.name)
 
+    # Apply the RVFI RTL edits (rd/mem/trap taps + top-level RVFI ports under
+    # `ifdef RVFI, sysmap PMA remap, mhcr I/D-cache reset) with a Python script
+    # instead of a unified-diff patch: deterministic and whitespace-robust.
+    # MUST run before the header->.v copy below so the remapped sysmap.h is the
+    # one copied to sysmap.v (the compiled config header).
+    res = ctx.execute(["python3", ctx.path(ctx.attr.rvfi_script), ctx.path(".")], timeout = 600)
+    if res.return_code != 0:
+        fail("openc910 fetch: apply_rvfi.py failed ({}):\n{}\n{}".format(res.return_code, res.stdout, res.stderr))
+
     # C910's cpu_cfig.h / sysmap.h are `define-only config headers that no RTL
     # file `includes; upstream compiles them FIRST in the filelist and relies on
     # the `define's persisting across the (single) compilation unit. Make `.v`
     # copies so rules_hdl/Verilator treat them as compilable sources (the BUILD
-    # lists them first in openc910_core srcs).
+    # lists them first in openc910_core srcs). Copied AFTER apply_rvfi.py so the
+    # sysmap.v copy carries the remapped PMA regions.
     for h in ["C910_RTL_FACTORY/gen_rtl/cpu/rtl/cpu_cfig", "C910_RTL_FACTORY/gen_rtl/mmu/rtl/sysmap"]:
         ctx.execute(["cp", h + ".h", h + ".v"], timeout = 60)
-
-    # Apply the RVFI RTL edits (rd/mem/trap taps + top-level RVFI ports under
-    # `ifdef RVFI, sysmap PMA remap, mhcr I/D-cache reset) with a Python script
-    # instead of a unified-diff patch: deterministic and whitespace-robust.
-    res = ctx.execute(["python3", ctx.path(ctx.attr.rvfi_script), ctx.path(".")], timeout = 600)
-    if res.return_code != 0:
-        fail("openc910 fetch: apply_rvfi.py failed ({}):\n{}\n{}".format(res.return_code, res.stdout, res.stderr))
 
     ctx.symlink(ctx.attr.build_file, "BUILD.bazel")
 
