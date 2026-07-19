@@ -1,11 +1,16 @@
 """Module extension that fetches stock XUANTIE-RV/openc910 from GitHub as the
-`@openc910` repo, applies our RVFI patch on top of the upstream RTL, overlays
-the new RVFI generation sources (`rvfi/rtl/*.v`), and installs our BUILD file
-(`//bazel:openc910.BUILD`). Upstream openc910 ships no Bazel and has no git
-submodules, so a lightweight custom repository rule is enough.
+`@openc910` repo, applies our RVFI edits on top of the upstream RTL via a Python
+script (`//bazel:apply_rvfi.py`), overlays the new RVFI generation sources
+(`rvfi/rtl/*.v`), and installs our BUILD file (`//bazel:openc910.BUILD`).
+Upstream openc910 ships no Bazel and has no git submodules, so a lightweight
+custom repository rule is enough.
+
+The RVFI RTL edits are applied programmatically by `apply_rvfi.py` (deterministic
+string edits guarded by `ifdef RVFI) rather than a unified-diff patch, so they
+are robust to upstream whitespace and self-verify their anchors.
 
 Nothing is vendored into this repo: the core is fetched by Bazel and the only
-in-repo artifacts are the BUILD overlay, the RVFI `.patch`, and the RVFI
+in-repo artifacts are the BUILD overlay, the RVFI apply script, and the RVFI
 overlay sources — all applied to the fetched tree at fetch time.
 """
 
@@ -37,10 +42,12 @@ def _openc910_repo_impl(ctx):
     for h in ["C910_RTL_FACTORY/gen_rtl/cpu/rtl/cpu_cfig", "C910_RTL_FACTORY/gen_rtl/mmu/rtl/sysmap"]:
         ctx.execute(["cp", h + ".h", h + ".v"], timeout = 60)
 
-    # Apply the RVFI RTL patch (exports rd/mem/trap taps + top-level RVFI ports
-    # under `ifdef RVFI). Use Bazel's native patch implementation (ctx.patch)
-    # rather than the `patch` binary, which the cvm image does not ship.
-    ctx.patch(ctx.attr.rvfi_patch, strip = 1)
+    # Apply the RVFI RTL edits (rd/mem/trap taps + top-level RVFI ports under
+    # `ifdef RVFI, sysmap PMA remap, mhcr I/D-cache reset) with a Python script
+    # instead of a unified-diff patch: deterministic and whitespace-robust.
+    res = ctx.execute(["python3", ctx.path(ctx.attr.rvfi_script), ctx.path(".")], timeout = 600)
+    if res.return_code != 0:
+        fail("openc910 fetch: apply_rvfi.py failed ({}):\n{}\n{}".format(res.return_code, res.stdout, res.stderr))
 
     ctx.symlink(ctx.attr.build_file, "BUILD.bazel")
 
@@ -50,7 +57,7 @@ _openc910_repo = repository_rule(
         "remote": attr.string(mandatory = True),
         "commit": attr.string(mandatory = True),
         "build_file": attr.label(mandatory = True, allow_single_file = True),
-        "rvfi_patch": attr.label(mandatory = True, allow_single_file = True),
+        "rvfi_script": attr.label(mandatory = True, allow_single_file = True),
         "rvfi_srcs": attr.label_list(allow_files = True),
     },
 )
@@ -61,7 +68,7 @@ def _ext_impl(_ctx):
         remote = _OPENC910_REMOTE,
         commit = _OPENC910_COMMIT,
         build_file = "//bazel:openc910.BUILD",
-        rvfi_patch = "//bazel:openc910_rvfi.patch",
+        rvfi_script = "//bazel:apply_rvfi.py",
         rvfi_srcs = ["//rvfi/rtl:ct_rvfi_gen.v"],
     )
 
