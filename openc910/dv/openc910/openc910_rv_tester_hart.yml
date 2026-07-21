@@ -5,10 +5,11 @@ rv_tester_rvfi_attrs: &rv_tester_rvfi_attrs
   MEM_ENABLE: 1
   CSR_ENABLE: 0
   UOP_ENABLE: 1
-  # C910 retires up to 3 instructions per cycle (ROB 3-wide).
-  NRETS: [3]
+  # C910 retires up to 3 ROB packets/cycle, each packing up to 3 instructions,
+  # so the per-instruction RVFI stream can present up to 9 retirements/cycle.
+  NRETS: [9]
   NRETS_CUMSUM: [0]
-  TOTAL_NRETS: 3
+  TOTAL_NRETS: 9
 
 rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
   ENABLE: 1

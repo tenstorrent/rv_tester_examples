@@ -20,6 +20,10 @@ sh_test(
         "+memmap_json_path=$(location //dv/openc910:memmap.json)",
         "+whisper_json_path=$(location //dv/openc910:whisper.json)",
         "+nomcm",
+        # C910's RVFI export ties off the retired instruction word (Stage A-D
+        # expose pc/rd/mem, not insn), so disable the cosim's insn-byte check;
+        # all architectural state (pc/rd/mem/trap) is still checked in lockstep.
+        "+insn_check=false",
         "+eot=tohost",
         "+save_all_files",
     ],
@@ -41,8 +45,10 @@ sh_test(
         "+memmap_json_path=$(location //dv/openc910:memmap.json)",
         "+whisper_json_path=$(location //dv/openc910:whisper.json)",
         "+nostandalone",
+        # See hello_world: C910 RVFI ties off the retired instruction word.
+        "+insn_check=false",
         "+eot=max_instr",
-        "+max_instr=8",
+        "+max_instr=200",
     ],
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",

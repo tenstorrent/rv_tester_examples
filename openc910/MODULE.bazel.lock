@@ -322,7 +322,7 @@
   "moduleExtensions": {
     "//bazel:openc910_ext.bzl%openc910_ext": {
       "general": {
-        "bzlTransitiveDigest": "LNA6bw+fH9pDbr9RP4CUz5qks9nQG1KrSzh4vzd+Vlc=",
+        "bzlTransitiveDigest": "blwPsXWMGt5OoudINn8Fx5b8MXEOgRkAiiduFDWIvYE=",
         "usagesDigest": "UbS2XyluMDY2C51zylCz7iHW0GCeflTEeF1EHk5xfHg=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -335,7 +335,7 @@
               "remote": "https://github.com/XUANTIE-RV/openc910.git",
               "commit": "b91c90914c19f114d35c8f6b73408eb241ed847c",
               "build_file": "@@//bazel:openc910.BUILD",
-              "rvfi_patch": "@@//bazel:openc910_rvfi.patch",
+              "rvfi_script": "@@//bazel:apply_rvfi.py",
               "rvfi_srcs": [
                 "@@//rvfi/rtl:ct_rvfi_gen.v"
               ]

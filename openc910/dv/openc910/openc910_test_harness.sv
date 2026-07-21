@@ -46,6 +46,7 @@ module openc910_test_harness
     logic [NRET-1:0]            core0_rvfi_intr;
     logic [NRET*2-1:0]          core0_rvfi_mode;
     logic [NRET*2-1:0]          core0_rvfi_ixl;
+    logic [NRET-1:0]            core0_rvfi_last_uop;
 
     // Monotonic retire tag. rv_tester / Whisper key each retired instruction on
     // `order`; C910 has no architectural retire-order export, so drive it from
@@ -62,7 +63,7 @@ module openc910_test_harness
         for (int i = 0; i < NRET; i++) begin
             rvfi[i].valid    = core0_rvfi_valid[i];
             rvfi[i].comp     = '0;
-            rvfi[i].last_uop = '1;
+            rvfi[i].last_uop = core0_rvfi_last_uop[i];
             rvfi[i].order    = tag;
             rvfi[i].insn     = core0_rvfi_insn[i*32 +: 32];
             rvfi[i].uop      = {32'h0, core0_rvfi_insn[i*32 +: 32]};
@@ -359,7 +360,8 @@ module openc910_test_harness
         .core0_rvfi_cause            ( core0_rvfi_cause       ),
         .core0_rvfi_intr             ( core0_rvfi_intr        ),
         .core0_rvfi_mode             ( core0_rvfi_mode        ),
-        .core0_rvfi_ixl              ( core0_rvfi_ixl         )
+        .core0_rvfi_ixl              ( core0_rvfi_ixl         ),
+        .core0_rvfi_last_uop         ( core0_rvfi_last_uop    )
         `endif
     );
 
