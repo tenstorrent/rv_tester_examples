@@ -17,14 +17,21 @@ import os
 import re
 import sys
 
-ROOT = os.path.join(sys.argv[1], "C910_RTL_FACTORY", "gen_rtl")
+ROOT = os.path.abspath(os.path.join(sys.argv[1], "C910_RTL_FACTORY", "gen_rtl"))
+
+def _safe(f):
+    # Confine all file access to ROOT: reject inputs that escape the base dir.
+    p = os.path.abspath(os.path.join(ROOT, f))
+    if p != ROOT and not p.startswith(ROOT + os.sep):
+        raise ValueError("path escapes gen_rtl root: {}".format(f))
+    return p
 
 def rd(f):
-    with open(os.path.join(ROOT, f)) as fh:
+    with open(_safe(f)) as fh:
         return fh.read()
 
 def wr(f, s):
-    with open(os.path.join(ROOT, f), "w") as fh:
+    with open(_safe(f), "w") as fh:
         fh.write(s)
 
 # Flattened RVFI export bus (NRET=3); field f of slot i occupies [i*W +: W].
