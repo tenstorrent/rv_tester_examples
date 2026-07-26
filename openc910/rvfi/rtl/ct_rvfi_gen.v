@@ -1,17 +1,5 @@
-/*Copyright 2019-2021 T-Head Semiconductor Co., Ltd.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-FileCopyrightText: © 2026 Tenstorrent USA, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
 // ---------------------------------------------------------------------------
 // ct_rvfi_gen : RISC-V Formal Interface (RVFI) generation block for the C910.
@@ -110,9 +98,6 @@ module ct_rvfi_gen #(
   reg [MAXPK-1:0]     t_rd_fpr [DEPTH-1:0];
   reg [MAXPK*PREGW-1:0] t_preg [DEPTH-1:0];
   reg [MAXPK*32-1:0]  t_insn   [DEPTH-1:0];             // per-sub instruction word
-  // ir_inst*_opcode are one pipe stage (1 cycle) ahead of the is_dis/pst_dis
-  // dispatch slots, so delay them one cycle to align with the dispatch capture.
-  reg [NENT*32-1:0]   disp_insn_ff;
   // physical-register-keyed writeback data.
   reg [XLEN-1:0]      t_preg_data [PDEPTH-1:0];
   // per-preg "written since dispatch" scoreboard. C910 retires loads that miss
@@ -126,7 +111,6 @@ module ct_rvfi_gen #(
 
   // ---- capture: dispatch (packet metadata) + writeback (preg data) ---------
   always @(posedge cpuclk) begin
-    disp_insn_ff <= disp_slot_insn;
     start_slot = 0;
     for (e = 0; e < NENT; e = e + 1) begin
       if (disp_ent_vld[e]) begin
@@ -138,7 +122,7 @@ module ct_rvfi_gen #(
           t_rd_we [disp_ent_iid[e*IIDW +: IIDW]][k]              <= disp_slot_rd_we[(start_slot+k) % NENT];
           t_rd_fpr[disp_ent_iid[e*IIDW +: IIDW]][k]              <= disp_slot_rd_fpr[(start_slot+k) % NENT];
           t_preg  [disp_ent_iid[e*IIDW +: IIDW]][k*PREGW +: PREGW] <= disp_slot_preg[((start_slot+k) % NENT)*PREGW +: PREGW];
-          t_insn  [disp_ent_iid[e*IIDW +: IIDW]][k*32 +: 32]      <= disp_insn_ff[((start_slot+k) % NENT)*32 +: 32];
+          t_insn  [disp_ent_iid[e*IIDW +: IIDW]][k*32 +: 32]      <= disp_slot_insn[((start_slot+k) % NENT)*32 +: 32];
           // a newly-allocated destination preg has not been written yet
           if (k < disp_ent_num[e*2 +: 2])
             t_preg_ready[disp_slot_preg[((start_slot+k) % NENT)*PREGW +: PREGW]] <= 1'b0;

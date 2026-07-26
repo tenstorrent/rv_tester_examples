@@ -136,22 +136,26 @@ isdp = isdp.replace("\nendmodule",
     "\n`ifdef RVFI\n" + "\n".join("output [2 :0]  %s;" % s for s in OFFS) + "\n`endif\n\nendmodule", 1)
 wr("idu/rtl/ct_idu_is_dp.v", isdp)
 
-# per-slot instruction word (opcode). ct_idu_is_dp consumes ir_inst*_data
-# directly, so ir_inst{0..3}_opcode are 1:1 aligned with the is_dis dispatch
-# slots (pc_offset/rd_areg/preg). Promote them ct_idu_ir_dp -> ct_idu_top.
-INSN = ["ir_inst0_opcode", "ir_inst1_opcode", "ir_inst2_opcode", "ir_inst3_opcode"]
+# per-slot instruction word (opcode). The is_dis dispatch metadata
+# (pc_offset/rd_areg/preg) is read from the registered IS entry
+# is_inst*_read_data; the raw 32-bit opcode is field [31:0] of that same entry
+# (IS_OPCODE=31). Tapping it here keeps the opcode slot-aligned with the other
+# dispatch fields with no pipe skew (ir_inst*_opcode is one stage earlier and
+# the IR->IS mapping compacts across slots). Promote ct_idu_is_dp -> ct_idu_top.
+INSN = ["rvfi_is_op0", "rvfi_is_op1", "rvfi_is_op2", "rvfi_is_op3"]
 
-irdp = rd("idu/rtl/ct_idu_ir_dp.v")
-require("module ct_idu_ir_dp(\n" in irdp, "ct_idu_ir_dp header not found")
-irdp = irdp.replace("module ct_idu_ir_dp(\n",
-    "module ct_idu_ir_dp(\n`ifdef RVFI\n" + "\n".join("  %s," % s for s in INSN) + "\n`endif\n", 1)
-irdp = irdp.replace("\nendmodule",
-    "\n`ifdef RVFI\n" + "\n".join("output [31 :0]  %s;" % s for s in INSN) + "\n`endif\n\nendmodule", 1)
-wr("idu/rtl/ct_idu_ir_dp.v", irdp)
+isdp = rd("idu/rtl/ct_idu_is_dp.v")
+require("is_inst0_read_data" in isdp, "ct_idu_is_dp is_inst*_read_data tap not found")
+isdp = isdp.replace("module ct_idu_is_dp(\n",
+    "module ct_idu_is_dp(\n`ifdef RVFI\n" + "\n".join("  %s," % s for s in INSN) + "\n`endif\n", 1)
+isdp = isdp.replace("\nendmodule",
+    "\n`ifdef RVFI\n" + "\n".join("output [31 :0]  %s;" % s for s in INSN) + "\n" +
+    "\n".join("assign %s = is_inst%d_read_data[31:0];" % (s, i) for i, s in enumerate(INSN)) +
+    "\n`endif\n\nendmodule", 1)
+wr("idu/rtl/ct_idu_is_dp.v", isdp)
 
 idutop = rd("idu/rtl/ct_idu_top.v")
-require("module ct_idu_top(\n" in idutop and "ct_idu_is_dp  x_ct_idu_is_dp (\n" in idutop
-        and "ct_idu_ir_dp  x_ct_idu_ir_dp (\n" in idutop,
+require("module ct_idu_top(\n" in idutop and "ct_idu_is_dp  x_ct_idu_is_dp (\n" in idutop,
         "ct_idu_top anchors not found")
 idutop = idutop.replace("module ct_idu_top(\n",
     "module ct_idu_top(\n`ifdef RVFI\n" +
@@ -161,10 +165,7 @@ idutop = idutop.replace("\nendmodule",
     "\n".join("output [31 :0]  %s;" % s for s in INSN) + "\n`endif\n\nendmodule", 1)
 idutop = idutop.replace("ct_idu_is_dp  x_ct_idu_is_dp (\n",
     "ct_idu_is_dp  x_ct_idu_is_dp (\n`ifdef RVFI\n" +
-    "\n".join("  .%-24s (%s)," % (s, s) for s in OFFS) + "\n`endif\n", 1)
-idutop = idutop.replace("ct_idu_ir_dp  x_ct_idu_ir_dp (\n",
-    "ct_idu_ir_dp  x_ct_idu_ir_dp (\n`ifdef RVFI\n" +
-    "\n".join("  .%-24s (%s)," % (s, s) for s in INSN) + "\n`endif\n", 1)
+    "\n".join("  .%-24s (%s)," % (s, s) for s in OFFS + INSN) + "\n`endif\n", 1)
 wr("idu/rtl/ct_idu_top.v", idutop)
 
 # ---- ct_core.v : wires + connections + ct_rvfi_gen instance ----
@@ -216,7 +217,7 @@ conn = [
     ("disp_slot_rd_we", "{idu_rtu_pst_dis_inst3_preg_vld, idu_rtu_pst_dis_inst2_preg_vld, idu_rtu_pst_dis_inst1_preg_vld, idu_rtu_pst_dis_inst0_preg_vld}"),
     ("disp_slot_rd_fpr", "{idu_rtu_pst_dis_inst3_freg_vld, idu_rtu_pst_dis_inst2_freg_vld, idu_rtu_pst_dis_inst1_freg_vld, idu_rtu_pst_dis_inst0_freg_vld}"),
     ("disp_slot_preg", "{idu_rtu_pst_dis_inst3_preg, idu_rtu_pst_dis_inst2_preg, idu_rtu_pst_dis_inst1_preg, idu_rtu_pst_dis_inst0_preg}"),
-    ("disp_slot_insn", "{ir_inst3_opcode, ir_inst2_opcode, ir_inst1_opcode, ir_inst0_opcode}"),
+    ("disp_slot_insn", "{rvfi_is_op3, rvfi_is_op2, rvfi_is_op1, rvfi_is_op0}"),
     # register writeback (physical-register-keyed): iu pipe0, iu pipe1, lsu pipe3
     # NWB=3: iu pipe0, iu pipe1, lsu pipe3. pipe3 carries the load result too,
     # but a missed load retires before pipe3 writes back; the generator's retire

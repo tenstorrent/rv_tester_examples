@@ -46,6 +46,22 @@ for a in "$@"; do
     esac
 done
 
+# openc910 exports a 32-bit RISC-V opcode (not the internal 36-bit uop), so
+# default the DUT rvfi log's opcode column to 32 bits. A caller that passes
+# +rvfi_log_36b_uop= explicitly still wins.
+case " ${args[*]} " in
+    *" +rvfi_log_36b_uop="*) ;;
+    *) args+=("+rvfi_log_36b_uop=false") ;;
+esac
+
+# C910 cracks jal/jalr into a custom link micro-op (word 0x0040009f). Register it
+# as a known custom op so the rvfi log renders it as CUSTOM_MICRO_OP instead of
+# illegal; other non-decodable micro-ops still show as illegal.
+case " ${args[*]} " in
+    *" +rvfi_custom_uop_opcodes="*) ;;
+    *) args+=("+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP") ;;
+esac
+
 # rv_tester writes per-run logs relative to CWD; snapshot it so we can pick up
 # whatever the sim produced if we end up archiving.
 OUT="${TEST_UNDECLARED_OUTPUTS_DIR:-}"

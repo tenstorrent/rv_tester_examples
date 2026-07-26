@@ -1,5 +1,11 @@
 # OpenC910 RVFI / rv_tester — Handoff Summary
 
+> **Note (superseded in places):** This is a point-in-time handoff. Since it was
+> written, the per-slot `insn` word is exported from the IS dispatch entry
+> (`is_inst*_read_data[31:0]`, no pipe-delay), `insn_check` is enabled on both
+> smoke targets, and cracked `jal`/`jalr` are handled via `opcode_modified`. See
+> `README.md` (§3 and the cracked-jump note) for the current behavior.
+
 ## 1. Goal & current status
 Bring up the **OpenC910** core under Tenstorrent's **rv_tester** in **Whisper ISS
 lockstep on Verilator**, in repo `rv_tester_examples`, branch `openc910-rvfi`.

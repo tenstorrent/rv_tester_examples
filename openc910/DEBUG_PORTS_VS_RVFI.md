@@ -1,5 +1,10 @@
 # OpenC910 debug/pad ports vs RVFI taps — feasibility analysis
 
+> **Note (superseded in places):** Since this analysis was written, the per-slot
+> `insn` word is tapped from the IS dispatch entry (`is_inst*_read_data[31:0]`,
+> no 1-cycle delay) and `insn_check` is enabled. See `README.md` for current
+> behavior.
+
 ## Question
 The C910 top level (`openC910`) exposes a set of unconnected `*_pad_*` / debug
 ports in the harness (`openc910/dv/openc910/openc910_test_harness.sv`):

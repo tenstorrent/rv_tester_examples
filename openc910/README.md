@@ -24,8 +24,8 @@ infra/run-bazel.sh           runs bazel-7 (bzlmod) inside the cvm podman image
 bazel/
   openc910_ext.bzl           module extension: fetch stock openc910, overlay RVFI srcs, apply RVFI patch
   openc910.BUILD             BUILD overlay for C910 (upstream ships no Bazel); srcs from the upstream filelist
-  openc910_rvfi.patch        RVFI export plumbing added on top of the fetched RTL (`ifdef RVFI)
-  rules_verilator_propagate_exit.patch / rv_tester_public_deps.patch
+  apply_rvfi.py              RVFI export plumbing applied on top of the fetched RTL (`ifdef RVFI)
+  rules_verilator_propagate_exit.patch
 rvfi/rtl/
   ct_rvfi_gen.v              RVFI generation block (iid-keyed retire record reconstruction)
 dv/
@@ -108,10 +108,11 @@ gate the cva6 tests use):
     (`iu_rtu_ex2_pipeK_wb_preg_vld` + `iu_rtu_pipeK_iid` + `iu_idu_ex2_pipeK_wb_preg_data`)
     and LSU pipe3 (load results). Mul/div fold onto the IU pipe0/1 writeback ports;
     the IU pipe2 slot is branch/complete only (no GPR data).
-- **Stage B — `insn`** (remaining): the 32-bit instruction word is still tied off
-  (`disp_insn`), since the ROB stores only the PC, not the encoding. Whisper
-  refetches the encoding from memory, so `rd`/`pc` lockstep does not need it;
-  populating `disp_insn` requires threading the decoded insn from the IDU by iid.
+- **Stage B — `insn`** (wired): the per-slot 32-bit instruction word is exported
+  from the registered IS dispatch entry (`is_inst*_read_data[31:0]`, the same
+  entry the pc_offset/rd taps read), keyed by iid, and checked in lockstep
+  (`insn_check` is enabled). Cracked ops are the one caveat — see the note at the
+  end of this file on `jal`/`jalr` and the `0x0040009f` link micro-op.
 - **Stage C (wired)** — `mem_addr` / `mem_rmask` / `mem_wmask` / `mem_rdata`:
   the load/store data-access taps are exported from `ct_lsu_top`
   (`ld_da_{addr,bytes_vld,data_ori,iid,inst_vld}` for loads,
@@ -176,8 +177,9 @@ network access to github.com + the Bazel Central Registry). See `cva6/README.md`
 - **Both smoke tests PASS** in Whisper lockstep (`//dv/openc910/testlists:all_smoke`):
   `infinite` and `hello_world` (the latter runs the full program to the HTIF
   `tohost` store — "Hello world!" on stdout, ~1.3M retirements checked in
-  lockstep). RVFI Stages A–D are wired (see §3); only store `mem_wdata` and the
-  `insn` word remain approximate/tied off, which the current smokes don't require.
+  lockstep). RVFI Stages A–D are wired (see §3), including the per-slot `insn`
+  word, so `insn_check` runs in lockstep; only store `mem_wdata` remains
+  approximate, which the current smokes don't require.
 - **Cold-boot bring-up (required to fetch the reset vector):** two C910-specific
   edits in `openc910_rvfi.patch`, both found via waveform debug:
   - `mmu/rtl/sysmap.h` PMA remap so `0x8000_0000` is normal cacheable-executable
@@ -194,3 +196,34 @@ network access to github.com + the Bazel Central Registry). See `cva6/README.md`
   the smoke tests default to `timeout = "eternal"`. Waveform dumping is opt-in via
   `+dbg` (see `sim.sh`); a whole-run VCD is multi-GB, so prefer `+dbg=<on>:<off>`
   over a narrow cycle window.
+
+### Note: cracked `jal`/`jalr` and the `0x0040009f` micro-op
+
+C910 is a superscalar out-of-order core and **cracks `jal`/`jalr` into two
+micro-ops that retire as two ROB entries at the same PC**, so a single jump shows
+up as two consecutive records in `h0_dut_rvfi.log`:
+
+```
+#69 ... 0x80001750 0040009f r ...1 ...80001754 CUSTOM_MICRO_OP <- link micro-op   (last_uop=0)
+#69 ... 0x80001750 efdff0ef r ...0 ...0        jal x1, .-0x104 <- redirect       (last_uop=1)
+```
+
+- **Link micro-op** — an integer-pipe op that computes and writes the link
+  register `ra = pc + 4`. Its instruction-word field is the C910-internal
+  encoding `0x0040009f`: `inst[6:0]=0x1f` is the *reserved/custom* column of the
+  RISC-V opcode map (no legal instruction lives there), `inst[11:7]=x1 (ra)`. It
+  is not a decodable RISC-V instruction — that is expected, not a bug.
+- **Redirect micro-op** — carries the real jump word (e.g. `0xefdff0ef`) and
+  performs the control transfer (PC update).
+
+rv_tester coalesces the two on `last_uop`: the link micro-op supplies the `ra`
+write, the redirect supplies the opcode and the jump, so the coalesced
+architectural state (ra + PC) checks out in lockstep. This word is registered as
+a known custom op via `sim.sh`'s
+`+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP`, so rv_tester (default-off
+`--rvfi_custom_uop_opcodes`) renders it as `CUSTOM_MICRO_OP` instead of `illegal`
+and skips its `insn` byte-check for the coalesced op; any *unlisted*
+non-decodable micro-op still shows as `illegal` and is still checked, and
+`insn_check` on the real jump/other instructions stays enabled. The opcode column
+is the 32-bit RISC-V word (`sim.sh` defaults `+rvfi_log_36b_uop=false`), so it
+prints `0040009f`, not the 36-bit `00040009f`.

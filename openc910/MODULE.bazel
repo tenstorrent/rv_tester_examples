@@ -9,11 +9,10 @@ module(name = "openc910_with_rvtester", version = "0.0.0")
 bazel_dep(name = "rv_tester", version = "0.0.0")
 archive_override(
     module_name = "rv_tester",
-    urls = ["https://github.com/tenstorrent/rv_tester/archive/32063987df88be766083d6914c8d187fcc8a9498.tar.gz"],
-    strip_prefix = "rv_tester-32063987df88be766083d6914c8d187fcc8a9498",
-    integrity = "sha256-axZ3oi561MWVdJkFwoHt6fuLq4TfU5JFc3//qX4D/wI=",
+    urls = ["https://github.com/tenstorrent/rv_tester/archive/287f412b386f02c8e8a8c443c4aee4dd0208c011.tar.gz"],
+    strip_prefix = "rv_tester-287f412b386f02c8e8a8c443c4aee4dd0208c011",
+    integrity = "sha256-2Jbfhn2h/F62nd8O9UkoBAS15c3OzPPyECsVTua9vJY=",
     patches = [
-        "//bazel:rv_tester_public_deps.patch",
         # Add a 128-bit (16-byte) read path to the axi_sw memory model; upstream
         # only wires 64/256/512-bit. C910's biu master is 128-bit.
         "//bazel:rv_tester_axi_sw_128.patch",
