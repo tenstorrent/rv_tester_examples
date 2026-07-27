@@ -2,7 +2,7 @@
 # infinite loop at the reset vector) in lockstep with Whisper, terminating
 # after a few instructions. sim.sh applies the stdout error-pattern check.
 exports_files(
-    ["infinite.S", "infinite.elf", "hello_world.elf", "sim.sh"],
+    ["sim.sh"],
     visibility = ["//visibility:public"],
 )
 
@@ -20,7 +20,7 @@ sh_test(
     srcs = ["//dv/cva6/testlists:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
-        "+load=$(location :hello_world.elf)",
+        "+load=$(location @rv_tester_testbins//testbins:hello_world.elf)",
         "+memmap_json_path=$(location //dv/cva6:memmap.json)",
         "+whisper_json_path=$(location //dv/cva6:whisper.json)",
         "+nomcm",
@@ -31,7 +31,7 @@ sh_test(
         "//dv/cva6/verilator:cva6_tb_verilator",
         "//dv/cva6:memmap.json",
         "//dv/cva6:whisper.json",
-        ":hello_world.elf",
+        "@rv_tester_testbins//testbins:hello_world.elf",
     ],
 )
 
@@ -40,7 +40,7 @@ sh_test(
     srcs = ["//dv/cva6/testlists:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
-        "+load=$(location :infinite.elf)",
+        "+load=$(location @rv_tester_testbins//testbins:infinite.elf)",
         "+memmap_json_path=$(location //dv/cva6:memmap.json)",
         "+whisper_json_path=$(location //dv/cva6:whisper.json)",
         "+nostandalone",
@@ -51,7 +51,7 @@ sh_test(
         "//dv/cva6/verilator:cva6_tb_verilator",
         "//dv/cva6:memmap.json",
         "//dv/cva6:whisper.json",
-        ":infinite.elf",
+        "@rv_tester_testbins//testbins:infinite.elf",
     ],
 )
 

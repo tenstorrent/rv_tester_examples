@@ -1,0 +1,5 @@
+# RVFI generation sources overlaid into @openc910 by //bazel:openc910_ext.bzl.
+exports_files(
+    ["ct_rvfi_gen.v"],
+    visibility = ["//visibility:public"],
+)

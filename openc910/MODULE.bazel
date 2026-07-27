@@ -1,4 +1,4 @@
-module(name = "cva6_with_rvtester", version = "0.0.0")
+module(name = "openc910_with_rvtester", version = "0.0.0")
 
 # ---------------------------------------------------------------------------
 # rv_tester — the testbench, pulled from the public github mirror.
@@ -20,6 +20,12 @@ archive_override(
     urls = ["https://github.com/tenstorrent/rv_tester/archive/287f412b386f02c8e8a8c443c4aee4dd0208c011.tar.gz"],
     strip_prefix = "rv_tester-287f412b386f02c8e8a8c443c4aee4dd0208c011",
     integrity = "sha256-2Jbfhn2h/F62nd8O9UkoBAS15c3OzPPyECsVTua9vJY=",
+    patches = [
+        # Add a 128-bit (16-byte) read path to the axi_sw memory model; upstream
+        # only wires 64/256/512-bit. C910's biu master is 128-bit.
+        "//bazel:rv_tester_axi_sw_128.patch",
+    ],
+    patch_strip = 1,
 )
 
 # ---------------------------------------------------------------------------
@@ -101,8 +107,9 @@ use_repo(
 # them here (pip hub names must be unique across modules).
 
 # ---------------------------------------------------------------------------
-# CVA6 — stock openhwgroup/cva6 from GitHub, with an in-repo BUILD overlay
-# (upstream ships no Bazel).  See //bazel:cva6_ext.bzl.
+# openc910 — stock XUANTIE-RV/openc910 from GitHub, with an in-repo BUILD
+# overlay (upstream ships no Bazel) and an RVFI patch applied on top of the
+# fetched RTL.  See //bazel:openc910_ext.bzl.
 # ---------------------------------------------------------------------------
-cva6_ext = use_extension("//bazel:cva6_ext.bzl", "cva6_ext")
-use_repo(cva6_ext, "cva6")
+openc910_ext = use_extension("//bazel:openc910_ext.bzl", "openc910_ext")
+use_repo(openc910_ext, "openc910")
