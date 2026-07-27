@@ -24,8 +24,12 @@ mkdir -p "$OUTPUT_ROOT"
 # podman -v requires an absolute path; resolve a relative --run-path/env value.
 OUTPUT_ROOT="$(cd "$OUTPUT_ROOT" && pwd)"
 
+# Mount the repo root (parent of this example) so the shared ../common module
+# (local_path_override in MODULE.bazel) is visible inside the container.
+REPO_ROOT="$(cd "$REPO/.." && pwd)"
+
 exec podman run --rm \
-  -v "$REPO:$REPO" \
+  -v "$REPO_ROOT:$REPO_ROOT" \
   -v "$OUTPUT_ROOT:$OUTPUT_ROOT" \
   -w "$REPO" \
   "$IMAGE" \

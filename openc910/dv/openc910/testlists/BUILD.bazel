@@ -4,7 +4,7 @@
 # error-pattern check. Both ELFs are generic rv64 images linked at the reset
 # vector 0x80000000 (the harness drives pad_core0_rvba to match).
 exports_files(
-    ["infinite.S", "infinite.elf", "hello_world.elf", "sim.sh"],
+    ["sim.sh"],
     visibility = ["//visibility:public"],
 )
 
@@ -16,7 +16,7 @@ sh_test(
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
-        "+load=$(location :hello_world.elf)",
+        "+load=$(location @rv_tester_testbins//testbins:hello_world.elf)",
         "+memmap_json_path=$(location //dv/openc910:memmap.json)",
         "+whisper_json_path=$(location //dv/openc910:whisper.json)",
         "+nomcm",
@@ -27,7 +27,7 @@ sh_test(
         "//dv/openc910/verilator:openc910_tb_verilator",
         "//dv/openc910:memmap.json",
         "//dv/openc910:whisper.json",
-        ":hello_world.elf",
+        "@rv_tester_testbins//testbins:hello_world.elf",
     ],
 )
 
@@ -37,7 +37,7 @@ sh_test(
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
-        "+load=$(location :infinite.elf)",
+        "+load=$(location @rv_tester_testbins//testbins:infinite.elf)",
         "+memmap_json_path=$(location //dv/openc910:memmap.json)",
         "+whisper_json_path=$(location //dv/openc910:whisper.json)",
         "+nostandalone",
@@ -48,7 +48,7 @@ sh_test(
         "//dv/openc910/verilator:openc910_tb_verilator",
         "//dv/openc910:memmap.json",
         "//dv/openc910:whisper.json",
-        ":infinite.elf",
+        "@rv_tester_testbins//testbins:infinite.elf",
     ],
 )
 

@@ -7,6 +7,14 @@ module(name = "openc910_with_rvtester", version = "0.0.0")
 # github.com/tenstorrent mirrors instead of the internal aus-gitlab archives.
 # ---------------------------------------------------------------------------
 bazel_dep(name = "rv_tester", version = "0.0.0")
+
+# Shared test binaries (generic rv64 images), one copy for all examples.
+bazel_dep(name = "rv_tester_testbins", version = "0.0.0")
+local_path_override(
+    module_name = "rv_tester_testbins",
+    path = "../common",
+)
+
 archive_override(
     module_name = "rv_tester",
     urls = ["https://github.com/tenstorrent/rv_tester/archive/287f412b386f02c8e8a8c443c4aee4dd0208c011.tar.gz"],
