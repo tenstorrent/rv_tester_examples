@@ -1,5 +1,3 @@
-"""Shared verilator_cc_library `vopts` constants for the openc910 build."""
-
 COMMON_VOPTS = [
     "--default-language",
     "1800-2017",
@@ -26,9 +24,7 @@ SW_TESTBENCH_VOPTS = COMMON_VOPTS + [
     "+define+TRACE_CHECKS_UNSUPPORTED",
 ]
 
-# openc910 (XuanTie C910) build: enable rv_tester's RVFI capture path and our
-# `RVFI export in the C910 RTL, disable the PMU counter interface (not mapped),
-# and waive the lint rules stock C910 (legacy Verilog-2001) trips under -Wall.
+# openc910: enable RVFI with RVFI macro, disable PMU, waive legacy Verilog-2001 warnings.
 OPENC910_VOPTS = SW_TESTBENCH_VOPTS + [
     "+define+RV_TESTER_PMCI_DISABLE",
     "+define+RVFI_TRACE",

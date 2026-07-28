@@ -1,4 +1,3 @@
-# Shared, core-agnostic testbench config consumed by each example's testlists.
 exports_files(
     [
         "memmap.json",

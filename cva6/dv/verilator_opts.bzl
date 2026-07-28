@@ -1,5 +1,3 @@
-"""Shared verilator_cc_library `vopts` constants."""
-
 COMMON_VOPTS = [
     "--default-language",
     "1800-2017",
@@ -26,10 +24,7 @@ SW_TESTBENCH_VOPTS = COMMON_VOPTS + [
     "+define+TRACE_CHECKS_UNSUPPORTED",
 ]
 
-# CVA6 build: enable rv_tester's RVFI capture path, disable the PMU counter
-# interface (CVA6 has none), and waive the lint rules stock CVA6 / cvfpu /
-# common_cells trip under -Wall (mirrors chips' ariane_verilator_config.vlt,
-# applied globally here — refine to file-scoped .vlt later if needed).
+# CVA6: enable RVFI, disable PMU (not present), waive stock lint warnings.
 CVA6_VOPTS = SW_TESTBENCH_VOPTS + [
     "+define+RV_TESTER_PMCI_DISABLE",
     "+define+RVFI_TRACE",

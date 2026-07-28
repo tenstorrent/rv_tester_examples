@@ -1,229 +1,95 @@
-# openc910
+# OpenC910
 
-Run the open-source [OpenC910](https://github.com/XUANTIE-RV/openc910) (XuanTie
-C910) RISC-V core under Tenstorrent's `rv_tester` testbench, checking it
-**instruction-by-instruction against the Whisper ISS in lockstep**. Target
-simulator: **Verilator**.
+Run open-source [OpenC910](https://github.com/XUANTIE-RV/openc910) (XuanTie C910) RISC-V core under `rv_tester` on Verilator, **lockstep instruction-by-instruction against Whisper ISS**. Both core and `rv_tester` are Bazel dependencies; RVFI additions applied to the upstream RTL by `rtl/apply_rvfi.py` at fetch time.
 
-This example mirrors the sibling `cva6/` example. Both C910 and rv_tester are
-pulled in as **Bazel dependencies** — there are no git submodules and nothing is
-vendored. The stock C910 RTL is fetched from GitHub and the RVFI additions are
-applied **on top** as a patch at fetch time.
+## What This Contains
 
----
-
-## 1. What this repo contains
-
-Only the *glue* between C910 and rv_tester lives here; the core itself and
-rv_tester are dependencies fetched by Bazel.
+Integration glue; C910 and `rv_tester` are fetched by Bazel.
 
 ```
-MODULE.bazel                 bzlmod deps: rv_tester (git), openc910 (github), cvm/whisper/…
-.bazelrc                     toolchain + sandbox/test flags (copied from cva6)
-infra/run-bazel.sh           runs bazel-7 (bzlmod) inside the cvm podman image
 bazel/
-  openc910_ext.bzl           module extension: fetch stock openc910, overlay RVFI srcs, apply RVFI patch
-  openc910.BUILD             BUILD overlay for C910 (upstream ships no Bazel); srcs from the upstream filelist
-  apply_rvfi.py              RVFI export plumbing applied on top of the fetched RTL (`ifdef RVFI)
-  rules_verilator_propagate_exit.patch
-rvfi/rtl/
-  ct_rvfi_gen.v              RVFI generation block (iid-keyed retire record reconstruction)
-dv/
-  verilator_opts.bzl         OPENC910_VOPTS (Verilator flags + rv_tester/RVFI defines + C910 lint waivers)
-  openc910/
-    openc910_test_harness.sv THE CONNECTION: C910 <-> rv_tester
-    top.sv                   rv_tester + harness, wired by name (.*)
-    openc910_defines.sv / _undefines.sv
-    openc910_rv_tester_platform.yml / _hart.yml / rv_tester_axi.yml / openc910_topology.yml
-    memmap.json / whisper.json / gflags.cpp
-    BUILD.bazel              topology_gen + rv_tester_gen codegen
-    verilator/BUILD.bazel    verilog_library -> verilator_cc_library -> cc_binary
-    testlists/               smoke sh_test + sim.sh + ELFs
+  openc910_ext.bzl           fetch C910, overlay RVFI srcs, run apply_rvfi.py
+  openc910.BUILD             BUILD overlay (upstream has no Bazel)
+rtl/
+  apply_rvfi.py              RVFI plumbing edits to upstream RTL (`ifdef RVFI)
+  rv_tester_axi_sw_128.patch adapt rv_tester AXI SW transactor to C910's 128-bit bus
+  rvfi/ct_rvfi_gen.v         RVFI reconstruction (iid-keyed retire record)
+dv/openc910/
+  openc910_test_harness.sv   C910 ↔ rv_tester shim
+  *.yml                      topology/hart/platform/AXI config
+  top.sv                     rv_tester + harness, wired by name (.*)
+  verilator/                 Verilator build
+  testlists/                 smoke tests + sim.sh
+MODULE.bazel                 dependencies (rv_tester, OpenC910, whisper, …)
+.bazelrc                      → ../common/bazelrc/common.bazelrc
 ```
 
-C910 is built **single-hart, RV64GC**: the `openC910` module is the dual-core MP
-top, so core1 is held in reset and only core0 is checked in lockstep.
+C910 config: **single-hart RV64GC**. (C910 module is dual-core; core1 held in reset; only core0 checked.)
 
----
+## Connection
 
-## 2. How the connection works
-
-`dv/openc910/top.sv` instantiates `rv_tester` and `openc910_test_harness`
-side-by-side and wires them by name (`.*`). The harness
-(`dv/openc910/openc910_test_harness.sv`) is the shim between C910's native flat
-ports and rv_tester's port bundle:
+`top.sv` instantiates `rv_tester` and `openc910_test_harness` side-by-side, wired by name (`.*`):
 
 ```
                      openc910_test_harness.sv
- openC910 (core0) ──► core0_rvfi_* export ──► rv_tester rvfi[]  ──► Whisper lockstep
-        │  biu_pad_* / pad_biu_* (plain AXI4)                 │
-        ▼                                                     ▼
-   rv_tester axi_req[0]/axi_rsp[0]
+ OpenC910 core0 ────► core0_rvfi_* export ──► rv_tester rvfi[] ──┐
+        │  biu plain-AXI4 (40-bit addr, 128-bit data)           │
+        ▼                                                       ▼
+   rv_tester axi_req[0]/axi_rsp[0]            Whisper lockstep check
 ```
 
-- **RVFI**: C910 only exposes retire-valid + retire-PC at its top. The RVFI
-  additions (`rvfi/rtl/ct_rvfi_gen.v` + `bazel/openc910_rvfi.patch`) reconstruct
-  the full per-retired-instruction record: metadata is captured into an
-  `iid`-keyed table at dispatch, filled with the result at register writeback and
-  the memory access at LSU commit, and read out in program order at retire. The
-  block emits a flattened `core0_rvfi_*` bus that the harness packs into
-  rv_tester's `rvfi[]` struct.
-- **AXI**: C910's `biu` plain-AXI4 master (40-bit addr, 128-bit data, 8-bit id)
-  is bridged onto rv_tester's `axi_req[0]`/`axi_rsp[0]`.
-- **Clock / reset / boot vector / termination** glue. The retire `order` tag is
-  generated in the harness (C910 exports no architectural retire order), same as
-  the cva6 harness.
+- **RVFI**: C910 exposes retire-valid + retire-PC only; `ct_rvfi_gen.v` + `apply_rvfi.py` edits reconstruct full per-instruction record (iid-keyed table: dispatch captures metadata, writeback fills result, retire reads out). Flattened `core0_rvfi_*` bus packed into `rvfi[]`.
+- **AXI**: `biu` master (40-bit addr, 128-bit data, 8-bit id) → `axi_req[0]`/`axi_rsp[0]`.
+- **Order tag**: Harness generates monotonic counter (C910 exports no retire order).
 
----
+## RVFI Stages
 
-## 3. The RVFI addition (staged)
+C910 is 3-wide OoO with register renaming; RVFI reconstructed in `ct_rvfi_gen.v` (instantiated in `ct_core`, patched in via `ifdef RVFI`, non-RVFI builds byte-identical to upstream):
 
-C910 is a 3-wide, out-of-order, register-renamed core; RVFI cannot be tapped
-from one pipeline stage. `ct_rvfi_gen.v` implements the reconstruction; the patch
-plumbs a flattened RVFI export up the hierarchy
-(`ct_core` → `ct_top` → `openC910`) under `` `ifdef RVFI `` and instantiates the
-block in `ct_core`, so a normal (non-RVFI) build is byte-identical to upstream.
+- **Stage A**: `valid`, `pc_rdata`, `pc_wdata`, `iid`, `mode`, `trap`, `cause`, `intr` from retirement signals + ROB retire exports.
+- **Stage B**: `rd_addr`, `rd_we`, `rd_wdata` from dispatch (captures by ROB iid) and writeback (IU/LSU pipes). Instruction word checked in lockstep.
+- **Stage C**: `mem_addr`, `mem_rmask`, `mem_wmask`, `mem_rdata` from LSU taps (load/store data). Store `mem_wdata` captured from `sd_ex1_data` (iid-keyed).
+- **Stage D**: FP `frd_*` from VFPU pipe6/7 writeback (smoke ELFs built no-F, so untested in smoke suite).
 
-Bring-up is staged (each stage validated by the same `sim.sh` + Whisper lockstep
-gate the cva6 tests use):
-
-- **Stage A (wired)** — `valid` / `pc_rdata` / `pc_wdata` / `iid` / `mode` /
-  `trap` / `cause` / `intr`, from signals available at `ct_core`
-  (`rtu_pad_retireN(_pc)`, `rtu_yy_xx_commitN_iid`, `cp0_yy_priv_mode`) plus the
-  ROB retire export added by the patch: `rob_retire_instN_next_pc` (→ `pc_wdata`,
-  word-address `<<1`) and, for slot 0 (the only slot that can trap before a
-  flush), `rob_retire_inst0_{expt_vld,expt_vec,int_vld,int_vec}` combined into
-  RVFI `trap`/`intr`/`cause` (mcause interrupt bit set for interrupts). These are
-  forwarded `ct_rtu_rob`→`ct_rtu_top`→`ct_core`.
-- **Stage B (wired)** — `rd_addr` / `rd_we` / `rd_wdata`:
-  - *dispatch tap*: every dispatched instruction is captured by its universal
-    ROB id. `preg_iid` is masked by `preg_vld` in the IDU, so it cannot serve as
-    the per-instruction key; instead the patch exports the ROB's own
-    `rob_createN_iid` (added as `rvfi_rob_createN_iid` outputs through
-    `ct_rtu_rob` → `ct_rtu_top` → `ct_core`) and uses `idu_rtu_rob_createN_dp_en`
-    as the dispatch pulse. This resets each entry on (re)dispatch, eliminating the
-    iid-reuse hazard. `rd_we`/`rd_addr` come from
-    `idu_rtu_pst_dis_instN_{preg_vld,dst_reg}`.
-  - *writeback tap*: GPR results are captured by iid from IU pipe0/pipe1
-    (`iu_rtu_ex2_pipeK_wb_preg_vld` + `iu_rtu_pipeK_iid` + `iu_idu_ex2_pipeK_wb_preg_data`)
-    and LSU pipe3 (load results). Mul/div fold onto the IU pipe0/1 writeback ports;
-    the IU pipe2 slot is branch/complete only (no GPR data).
-- **Stage B — `insn`** (wired): the per-slot 32-bit instruction word is exported
-  from the registered IS dispatch entry (`is_inst*_read_data[31:0]`, the same
-  entry the pc_offset/rd taps read), keyed by iid, and checked in lockstep
-  (`insn_check` is enabled). Cracked ops are the one caveat — see the note at the
-  end of this file on `jal`/`jalr` and the `0x0040009f` link micro-op.
-- **Stage C (wired)** — `mem_addr` / `mem_rmask` / `mem_wmask` / `mem_rdata`:
-  the load/store data-access taps are exported from `ct_lsu_top`
-  (`ld_da_{addr,bytes_vld,data_ori,iid,inst_vld}` for loads,
-  `st_da_{addr,sf_bytes_vld,iid,inst_vld}` for stores) and fed to the block's
-  `ls_*` ports (port0 = load, port1 = store). The 16-bit C910 line byte-valid is
-  narrowed to the 8-byte RVFI mask via `addr[3]` (correct for naturally-aligned
-  accesses ≤ 8 bytes).
-- **Stage C — store `mem_wdata` (wired)**: captured from `sd_ex1_data`
-  (store-data ex1 stage, exported from `ct_lsu_top`) via a dedicated `sd_*` port
-  on `ct_rvfi_gen`, keyed by the pipe4 store iid delayed one cycle
-  (`idu_lsu_rf_pipe4_iid` registered to align with the ex1 store data). Because
-  the table is iid-keyed, this fills `mem_wdata[iid]` independently of the
-  address/mask write from `st_da`. **Assumption:** no stall between the store's
-  `rf` and `ex1` stages (otherwise the delayed-iid pairing skews); this tap
-  should be confirmed in simulation.
-- **Stage D (wired)** — FP `frd_*`:
-  - *dispatch*: `disp_rd_fpr` = `idu_rtu_pst_dis_instN_freg_vld`; `disp_rd_we`
-    now also asserts for FP writers (`preg_vld | freg_vld`); `disp_rd_areg`
-    selects the GPR `dst_reg` or the FP `ereg` areg.
-  - *writeback*: FP results captured by iid from VFPU pipe6/pipe7
-    (`vfpu_rtu_ex5_pipeK_wb_vreg_fr_vld` + `vfpu_rtu_pipeK_iid` +
-    `vfpu_idu_ex5_pipeK_wb_vreg_fr_data`), so `NWB=5`.
-  - The harness routes `rd_fpr` retirements to rv_tester's `frd_*` fields.
-  - Note: the smoke ELFs are built no-F, so FP is not exercised by the smoke
-    suite; Stage D matters for FP-writing programs.
-
----
-
-## 4. Build and run
-
-All commands go through the helper, which runs `bazel-7 --config=bzlmod` inside
-the cvm podman image:
+## Build & Run
 
 ```bash
 cd rv_tester_examples/openc910
 
-# Build the Verilator model (compile + link only)
+# Build Verilator model
 ./infra/run-bazel.sh build --config=bzlmod //dv/openc910/verilator:openc910_tb_verilator
 
-# Run the smoke (builds the model too, then runs it in Whisper lockstep)
+# Run smoke
 ./infra/run-bazel.sh test  --config=bzlmod //dv/openc910/testlists:all_smoke --test_output=errors
 ```
 
-Requirements are identical to the cva6 example (Bazel 7, the cvm podman image,
-network access to github.com + the Bazel Central Registry). See `cva6/README.md`
-§3 for the full dependency list.
+Requirements: Bazel 7, cvm podman image, network access. See cva6 README for dependency list.
 
----
+## Tests
 
-## 5. Tests
+**`//dv/openc910/testlists:all_smoke`**:
+- `infinite_openc910_verilator`: infinite loop, 8 instructions (`+max_instr=8`).
+- `hello_world_openc910_verilator`: runs to HTIF `tohost` completion (~1.3M retirements in lockstep). **Passes** with RVFI Stages A–D wired and `insn_check` enabled; store `mem_wdata` approximate only.
 
-- **`//dv/openc910/testlists:all_smoke`** — `infinite_openc910_verilator`
-  (infinite loop at the reset vector, `+eot=max_instr +max_instr=8`) and
-  `hello_world_openc910_verilator` (runs to completion via an HTIF store to
-  `tohost`). Both ELFs are the generic rv64 images from the cva6 example, linked
-  at reset vector `0x80000000`; the harness drives `pad_core0_rvba` to match.
+## Status & Known Limitations
 
----
+- **Smoke tests PASS** in Whisper lockstep. RVFI Stages A–D wired; `insn_check` enabled. Store `mem_wdata` approximate (not exercised by smoke suite).
+- **Cold-boot edits** (both in `rtl/apply_rvfi.py`):
+  - `mmu/rtl/sysmap.h`: remap PMA so `0x8000_0000` is cacheable-executable (fetch lookup on `PA[39:12]`; `BASE0=0x02000` boot, `BASE1=0x80000` MMIO, `BASE2=0x100000` DRAM+).
+  - `cp0/rtl/ct_cp0_regs.v`: reset `mhcr.IE/DE` to 1 (I/D cache enabled at reset); C910 cannot fetch cacheable memory with icache off.
+- **Interrupts** (PLIC/CLINT): tied off for smoke bring-up. C910 has internal CLINT fed by harness `sys_cnt`.
+- **Runtime**: Verilated C910 slow (~40 min for `hello_world`); smoke tests default to `timeout = "eternal"`. Waveform dump opt-in via `+dbg` (or `+dbg=<on>:<off>` for window); full-run VCD is multi-GB.
 
-## 6. Status / known limitations
+## Cracked `jal`/`jalr` Micro-ops
 
-- **Both smoke tests PASS** in Whisper lockstep (`//dv/openc910/testlists:all_smoke`):
-  `infinite` and `hello_world` (the latter runs the full program to the HTIF
-  `tohost` store — "Hello world!" on stdout, ~1.3M retirements checked in
-  lockstep). RVFI Stages A–D are wired (see §3), including the per-slot `insn`
-  word, so `insn_check` runs in lockstep; only store `mem_wdata` remains
-  approximate, which the current smokes don't require.
-- **Cold-boot bring-up (required to fetch the reset vector):** two C910-specific
-  edits in `openc910_rvfi.patch`, both found via waveform debug:
-  - `mmu/rtl/sysmap.h` PMA remap so `0x8000_0000` is normal cacheable-executable
-    memory. The sysmap compares `PA[39:12]` (4 KB units): a `0x8000_0000` fetch
-    looks up `0x80000`, so the region bases are `BASE0=0x02000` (boot, exec),
-    `BASE1=0x80000` (MMIO `0x0200_0000`–`0x8000_0000`, device),
-    `BASE2=0x100000` (DRAM `0x8000_0000`+, exec).
-  - `cp0/rtl/ct_cp0_regs.v`: `mhcr.IE/DE` reset to 1 (I/D cache enabled at reset),
-    since C910 cannot fetch cacheable memory with the icache off and there is no
-    cold-executable uncached region.
-- **Interrupts** (PLIC/CLINT external lines) are tied off for smoke bring-up;
-  C910 has an internal CLINT fed by the harness `sys_cnt` counter.
-- **Runtime**: the Verilated C910 cosim is slow — `hello_world` takes ~40 min, so
-  the smoke tests default to `timeout = "eternal"`. Waveform dumping is opt-in via
-  `+dbg` (see `sim.sh`); a whole-run VCD is multi-GB, so prefer `+dbg=<on>:<off>`
-  over a narrow cycle window.
-
-### Note: cracked `jal`/`jalr` and the `0x0040009f` micro-op
-
-C910 is a superscalar out-of-order core and **cracks `jal`/`jalr` into two
-micro-ops that retire as two ROB entries at the same PC**, so a single jump shows
-up as two consecutive records in `h0_dut_rvfi.log`:
+C910 cracks `jal`/`jalr` into two ROB entries at the same PC (two consecutive records in `h0_dut_rvfi.log`):
 
 ```
-#69 ... 0x80001750 0040009f r ...1 ...80001754 CUSTOM_MICRO_OP <- link micro-op   (last_uop=0)
-#69 ... 0x80001750 efdff0ef r ...0 ...0        jal x1, .-0x104 <- redirect       (last_uop=1)
+#69 ... 0x80001750 0040009f r ...1 ...80001754 CUSTOM_MICRO_OP  (link, last_uop=0)
+#69 ... 0x80001750 efdff0ef r ...0 ...0        jal x1, .-0x104  (redirect, last_uop=1)
 ```
 
-- **Link micro-op** — an integer-pipe op that computes and writes the link
-  register `ra = pc + 4`. Its instruction-word field is the C910-internal
-  encoding `0x0040009f`: `inst[6:0]=0x1f` is the *reserved/custom* column of the
-  RISC-V opcode map (no legal instruction lives there), `inst[11:7]=x1 (ra)`. It
-  is not a decodable RISC-V instruction — that is expected, not a bug.
-- **Redirect micro-op** — carries the real jump word (e.g. `0xefdff0ef`) and
-  performs the control transfer (PC update).
+- **Link micro-op** (`0x0040009f`): computes `ra = pc + 4`. Word is C910-internal encoding (not decodable RISC-V; `inst[6:0]=0x1f` is reserved column, `inst[11:7]=x1`); not a bug.
+- **Redirect micro-op**: carries real jump word, performs control transfer.
 
-rv_tester coalesces the two on `last_uop`: the link micro-op supplies the `ra`
-write, the redirect supplies the opcode and the jump, so the coalesced
-architectural state (ra + PC) checks out in lockstep. This word is registered as
-a known custom op via `sim.sh`'s
-`+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP`, so rv_tester (default-off
-`--rvfi_custom_uop_opcodes`) renders it as `CUSTOM_MICRO_OP` instead of `illegal`
-and skips its `insn` byte-check for the coalesced op; any *unlisted*
-non-decodable micro-op still shows as `illegal` and is still checked, and
-`insn_check` on the real jump/other instructions stays enabled. The opcode column
-is the 32-bit RISC-V word (`sim.sh` defaults `+rvfi_log_36b_uop=false`), so it
-prints `0040009f`, not the 36-bit `00040009f`.
+rv_tester coalesces on `last_uop`: link supplies `ra` write, redirect supplies opcode/jump. Registered as known custom op via `sim.sh` `+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP`; skips `insn` byte-check for coalesced op; all other instructions checked normally.

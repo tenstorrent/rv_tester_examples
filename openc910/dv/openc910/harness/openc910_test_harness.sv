@@ -1,11 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Shim between the XuanTie C910 (`openC910` dual-core MP top) and rv_tester.
-// Single-hart lockstep: core0 is the DUT; core1 is held in reset so only core0
-// retires. The C910 `biu` plain-AXI4 master is bridged onto rv_tester AXI slot
-// 0, and the `ifdef RVFI export bus our patch adds to openC910 (core0_rvfi_*)
-// is packed into rv_tester's rvfi[] struct.
+// Bridge between XuanTie C910 dual-core top and rv_tester (single-hart lockstep: core0 DUT, core1 reset).
 module openc910_test_harness
     import rv_tester_params::*;
 #(
@@ -15,8 +11,6 @@ module openc910_test_harness
 );
 
     localparam int NRET = topology.TOP.PLATFORM.COSIM.RVFI.NRETS[0];
-    // TB_CLK_IDX, CORE_CLK_IDX, AXI_CLK_IDX, SOC_CLK_IDX, REF_CLK_IDX,
-    // COLD_RESET_IDX are imported from rv_tester_params.
 
     // C910 AXI geometry (see rv_tester_axi.yml).
     localparam int C910_AXI_ADDR = 40;
@@ -24,10 +18,7 @@ module openc910_test_harness
     localparam int C910_AXI_ID   = 8;
     localparam int C910_AXI_STRB = 16;
 
-    // ------------------------------------------------------------------
-    // Flattened RVFI export from openC910 (added by openc910_rvfi.patch,
-    // core0, NRET=3). Widths must match ct_rvfi_gen.v.
-    // ------------------------------------------------------------------
+    // Flattened RVFI export from openC910 (core0, NRET=3)
     logic [NRET-1:0]            core0_rvfi_valid;
     logic [NRET*32-1:0]         core0_rvfi_insn;
     logic [NRET*64-1:0]         core0_rvfi_pc_rdata;
@@ -48,15 +39,10 @@ module openc910_test_harness
     logic [NRET*2-1:0]          core0_rvfi_ixl;
     logic [NRET-1:0]            core0_rvfi_last_uop;
 
-    // Monotonic retire tag. rv_tester / Whisper key each retired instruction on
-    // `order`; C910 has no architectural retire-order export, so drive it from
-    // a local counter incremented once per valid retirement (same approach as
-    // the cva6 harness).
+    // Monotonic retire tag: counter incremented per valid retirement
     logic [63:0] retire_tag_q;
 
-    // ------------------------------------------------------------------
-    // RVFI export -> rv_tester RVFI struct.
-    // ------------------------------------------------------------------
+    // RVFI export -> rv_tester RVFI struct
     always_comb begin
         logic [63:0] tag;
         tag = retire_tag_q;
@@ -73,7 +59,6 @@ module openc910_test_harness
             rvfi[i].intr     = core0_rvfi_intr[i];
             rvfi[i].mode     = core0_rvfi_mode[i*2 +: 2];
             rvfi[i].ixl      = core0_rvfi_ixl[i*2 +: 2];
-            // GPR write. FP-destination writes are routed to frd_* below.
             rvfi[i].rd_addr  = (core0_rvfi_rd_we[i] && !core0_rvfi_rd_fpr[i]) ?
                                {1'b0, core0_rvfi_rd_addr[i*5 +: 5]} : '0;
             rvfi[i].rd_wdata = (core0_rvfi_rd_we[i] && !core0_rvfi_rd_fpr[i]) ?
@@ -89,7 +74,6 @@ module openc910_test_harness
             rvfi[i].csr_wmask = '0;
             rvfi[i].csr_rmask = '0;
             rvfi[i].vrd_valid = '0;
-            // FP-destination write goes to the frd_* fields.
             rvfi[i].frd_valid = core0_rvfi_rd_we[i] && core0_rvfi_rd_fpr[i];
             rvfi[i].frd_addr  = core0_rvfi_rd_addr[i*5 +: 5];
             rvfi[i].frd_wdata = core0_rvfi_rd_wdata[i*64 +: 64];
@@ -110,10 +94,7 @@ module openc910_test_harness
         end
     end
 
-    // ------------------------------------------------------------------
-    // AXI: C910 biu plain-AXI4 master -> rv_tester AXI slot 0.
-    // ------------------------------------------------------------------
-    // Master outputs from C910.
+    // AXI: C910 biu plain-AXI4 master -> rv_tester AXI slot 0
     logic [C910_AXI_ADDR-1:0] biu_pad_araddr;
     logic [1:0]               biu_pad_arburst;
     logic [3:0]               biu_pad_arcache;
@@ -178,7 +159,7 @@ module openc910_test_harness
         axi_req[0].r_ready  = biu_pad_rready;
     end
 
-    // Response back to C910.
+    // Response back to C910
     logic                     pad_biu_arready;
     logic                     pad_biu_awready;
     logic [C910_AXI_ID-1:0]   pad_biu_bid;
@@ -210,7 +191,7 @@ module openc910_test_harness
         pad_biu_csysreq = 1'b1;
     end
 
-    // Quiesce the rest of the AXI mem group + the NCIO group.
+    // Quiesce rest of AXI mem group + NCIO group
     always_comb begin
         for (int i = 1; i < topology.TOP.PLATFORM.AXI_SW[AXI_IDX].SHARD; i++) begin
             axi_req[i] = '0;
@@ -228,36 +209,28 @@ module openc910_test_harness
 
     assign quiesced = '1;
 
-    // ------------------------------------------------------------------
-    // Free-running system counter feeding C910's internal CLINT time.
-    // ------------------------------------------------------------------
+    // Free-running system counter for C910's internal CLINT time
     logic [63:0] sys_cnt_q;
     always_ff @(posedge dut_clk[CORE_CLK_IDX]) begin
         if (reset[COLD_RESET_IDX]) sys_cnt_q <= '0;
         else                       sys_cnt_q <= sys_cnt_q + 64'd1;
     end
 
-    // ------------------------------------------------------------------
-    // C910 DUT (dual-core MP top; core1 held in reset).
-    // ------------------------------------------------------------------
+    // C910 DUT (dual-core MP top; core1 held in reset)
     openC910 i_openC910 (
-        // clocks / low power
         .pll_cpu_clk                 ( dut_clk[CORE_CLK_IDX] ),
         .axim_clk_en                 ( 1'b1                  ),
-        // resets (active low)
         .pad_cpu_rst_b               ( ~reset[COLD_RESET_IDX] ),
         .pad_core0_rst_b             ( ~reset[COLD_RESET_IDX] ),
         .pad_core1_rst_b             ( 1'b0                   ),
         .pad_yy_dft_clk_rst_b        ( 1'b1                   ),
         .pad_yy_scan_rst_b           ( 1'b1                   ),
-        // boot / ids
         .pad_core0_rvba              ( bootstrap.boot_addr[39:0] ),
         .pad_core1_rvba              ( 40'h0                  ),
         .pad_core0_hartid            ( 3'd0                   ),
         .pad_core1_hartid            ( 3'd1                   ),
         .pad_cpu_apb_base            ( 40'h0                  ),
         .pad_cpu_sys_cnt             ( sys_cnt_q              ),
-        // debug / dft / mbist / scan tie-offs
         .pad_core0_dbg_mask          ( 1'b0                   ),
         .pad_core0_dbgrq_b           ( 1'b1                   ),
         .pad_core1_dbg_mask          ( 1'b0                   ),
@@ -273,10 +246,9 @@ module openc910_test_harness
         .pad_yy_mbist_mode           ( 1'b0                   ),
         .pad_yy_scan_enable          ( 1'b0                   ),
         .pad_yy_scan_mode            ( 1'b0                   ),
-        // external (PLIC) interrupts tied off for smoke bring-up
+        // PLIC external interrupts tied off for smoke bring-up.
         .pad_plic_int_cfg            ( 144'h0                 ),
         .pad_plic_int_vld            ( 144'h0                 ),
-        // AXI master out
         .biu_pad_araddr              ( biu_pad_araddr         ),
         .biu_pad_arburst             ( biu_pad_arburst        ),
         .biu_pad_arcache             ( biu_pad_arcache        ),
@@ -303,7 +275,6 @@ module openc910_test_harness
         .biu_pad_wlast               ( biu_pad_wlast          ),
         .biu_pad_wstrb               ( biu_pad_wstrb          ),
         .biu_pad_wvalid              ( biu_pad_wvalid         ),
-        // AXI slave in
         .pad_biu_arready             ( pad_biu_arready        ),
         .pad_biu_awready             ( pad_biu_awready        ),
         .pad_biu_bid                 ( pad_biu_bid            ),
@@ -316,7 +287,7 @@ module openc910_test_harness
         .pad_biu_rresp               ( pad_biu_rresp          ),
         .pad_biu_rvalid              ( pad_biu_rvalid         ),
         .pad_biu_wready              ( pad_biu_wready         ),
-        // observed outputs left unconnected (retire pads superseded by RVFI)
+        // Observed outputs left unconnected (retire pads superseded by RVFI).
         .core0_pad_jdb_pm            (                        ),
         .core0_pad_lpmd_b            (                        ),
         .core0_pad_mstatus           (                        ),
@@ -340,7 +311,6 @@ module openc910_test_harness
         .cpu_pad_no_op               (                        ),
         .had_pad_jtg_tdo             (                        ),
         .had_pad_jtg_tdo_en          (                        )
-        // RVFI export bus (added by openc910_rvfi.patch under `ifdef RVFI)
         `ifdef RVFI
         ,
         .core0_rvfi_valid            ( core0_rvfi_valid       ),

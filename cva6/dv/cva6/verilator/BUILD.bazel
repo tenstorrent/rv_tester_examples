@@ -2,12 +2,6 @@ load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("//dv:verilator_opts.bzl", "CVA6_VOPTS")
 
-# Verilator side, split from //dv/cva6 so that package stays loadable without
-# @rules_verilator / @rules_hdl.
-
-# CVA6's common_cells / axi include dirs are staged (clean single-namespace
-# path) inside the @cva6 fetch itself — see bazel/cva6_ext.bzl — so nothing is
-# vendored here; the incdir comes transitively via @cva6//:cv64a6_imafdc_sv39.
 verilog_library(
     name = "cva6_top",
     srcs = [

@@ -1,15 +1,11 @@
-"""Module extension that fetches stock openhwgroup/cva6 from GitHub as the
-`@cva6` repo, initialising only the submodules the core RTL needs
-(`core/cvfpu` and its nested `fpu_div_sqrt_mvp`), and overlaying our
-BUILD file (`//bazel:cva6.BUILD`). Upstream CVA6 ships no Bazel, and
-`git_repository` cannot init a *subset* of submodules, hence the custom rule.
-"""
+"""Fetches CVA6 from GitHub, initializes core/cvfpu submodule subset (git_repository
+cannot init a subset), stages deduplicated include paths, and overlays BUILD."""
 
 _CVA6_REMOTE = "https://github.com/openhwgroup/cva6.git"
 _CVA6_COMMIT = "31b45637935e944a0e9b4e2cb14e9bb49c9bdd23"
 
-# "<parent-dir>|<submodule-path>", initialised in order so a nested submodule
-# is fetched after its parent is checked out. Empty parent == repo root.
+# "<parent>|<path>", ordered so a nested submodule is fetched after its parent
+# (empty parent = repo root).
 _SUBMODULES = [
     "|core/cvfpu",
     "core/cvfpu|src/fpu_div_sqrt_mvp",
@@ -36,13 +32,7 @@ def _cva6_repo_impl(ctx):
         parent, _, path = pair.partition("|")
         _git(ctx, ["submodule", "update", "--init", "--depth", "1", path], cwd = parent, what = "submodule " + path)
 
-    # Stage clean-path copies of the include dirs whose namespace repeats in
-    # the real path (.../common_cells/include/common_cells, .../axi/include/axi).
-    # rules_hdl_compat derives the +incdir by truncating at the FIRST namespace
-    # match, so it needs a path where the namespace appears once. Copying into
-    # bazel_include/<ns>/ (namespace appears once) yields the correct incdir
-    # `<repo>/bazel_include`. Kept in the fetched @cva6 so nothing is vendored
-    # into the consuming repo and there is no version skew.
+    # Stage deduplicated include paths: rules_hdl truncates at first namespace match.
     _run(ctx, ["mkdir", "-p", "bazel_include"], "mkdir bazel_include")
     _run(ctx, ["cp", "-rL", "vendor/pulp-platform/common_cells/include/common_cells", "bazel_include/common_cells"], "stage common_cells include")
     _run(ctx, ["cp", "-rL", "vendor/pulp-platform/axi/include/axi", "bazel_include/axi"], "stage axi include")

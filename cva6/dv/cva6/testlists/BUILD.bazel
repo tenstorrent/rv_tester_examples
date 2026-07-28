@@ -1,20 +1,10 @@
-# Smoke: run the pre-built cva6_tb_verilator against infinite.elf (an
-# infinite loop at the reset vector) in lockstep with Whisper, terminating
-# after a few instructions. sim.sh applies the stdout error-pattern check.
 exports_files(
     ["sim.sh"],
     visibility = ["//visibility:public"],
 )
 
-# hello_world runs to completion and terminates via an HTIF store to `tohost`
-# (eot=tohost), unlike the infinite loop. Its console output (HTIF putchar)
-# appears on stdout / in test.log. PASSES in lockstep against Whisper.
-#
-# The ELF is built rv64ima_zicsr (no F), so its CRT emits no FP register init and
-# it sidesteps the unmapped-FP-write limitation (the harness ties off rv_tester's
-# frd_valid/frd_addr/frd_wdata; see README "Known limitations"). FP-writing
-# programs still trip the arch check until that mapping exists.
-#
+# ELF is rv64ima_zicsr (no F): its CRT emits no FP init, avoiding the
+# unmapped-FP-write limitation (harness ties off rv_tester frd_*).
 sh_test(
     name = "hello_world_cva6_verilator",
     srcs = ["//dv/cva6/testlists:sim.sh"],
