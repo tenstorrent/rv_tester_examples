@@ -20,18 +20,18 @@ sh_test(
     srcs = ["//dv/cva6/testlists:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:hello_world.elf)",
-        "+memmap_json_path=$(location //dv/cva6:memmap.json)",
-        "+whisper_json_path=$(location //dv/cva6:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:hello_world.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nomcm",
         "+eot=tohost",
         "+save_all_files",
     ],
     data = [
         "//dv/cva6/verilator:cva6_tb_verilator",
-        "//dv/cva6:memmap.json",
-        "//dv/cva6:whisper.json",
-        "@rv_tester_testbins//testbins:hello_world.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:hello_world.elf",
     ],
 )
 
@@ -40,18 +40,18 @@ sh_test(
     srcs = ["//dv/cva6/testlists:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:infinite.elf)",
-        "+memmap_json_path=$(location //dv/cva6:memmap.json)",
-        "+whisper_json_path=$(location //dv/cva6:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:infinite.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=8",
     ],
     data = [
         "//dv/cva6/verilator:cva6_tb_verilator",
-        "//dv/cva6:memmap.json",
-        "//dv/cva6:whisper.json",
-        "@rv_tester_testbins//testbins:infinite.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:infinite.elf",
     ],
 )
 

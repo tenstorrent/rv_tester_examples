@@ -16,18 +16,18 @@ sh_test(
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:hello_world.elf)",
-        "+memmap_json_path=$(location //dv/openc910:memmap.json)",
-        "+whisper_json_path=$(location //dv/openc910:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:hello_world.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nomcm",
         "+eot=tohost",
         "+save_all_files",
     ],
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",
-        "//dv/openc910:memmap.json",
-        "//dv/openc910:whisper.json",
-        "@rv_tester_testbins//testbins:hello_world.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:hello_world.elf",
     ],
 )
 
@@ -37,18 +37,18 @@ sh_test(
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:infinite.elf)",
-        "+memmap_json_path=$(location //dv/openc910:memmap.json)",
-        "+whisper_json_path=$(location //dv/openc910:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:infinite.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=200",
     ],
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",
-        "//dv/openc910:memmap.json",
-        "//dv/openc910:whisper.json",
-        "@rv_tester_testbins//testbins:infinite.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:infinite.elf",
     ],
 )
 

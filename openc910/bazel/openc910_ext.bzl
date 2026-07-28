@@ -1,7 +1,7 @@
 """Module extension that fetches stock XUANTIE-RV/openc910 from GitHub as the
 `@openc910` repo, applies our RVFI edits on top of the upstream RTL via a Python
-script (`//bazel:apply_rvfi.py`), overlays the new RVFI generation sources
-(`rvfi/rtl/*.v`), and installs our BUILD file (`//bazel:openc910.BUILD`).
+script (`//rtl:apply_rvfi.py`), overlays the new RVFI generation sources
+(`//rtl:rvfi/*.v`), and installs our BUILD file (`//bazel:openc910.BUILD`).
 Upstream openc910 ships no Bazel and has no git submodules, so a lightweight
 custom repository rule is enough.
 
@@ -71,8 +71,8 @@ def _ext_impl(_ctx):
         remote = _OPENC910_REMOTE,
         commit = _OPENC910_COMMIT,
         build_file = "//bazel:openc910.BUILD",
-        rvfi_script = "//bazel:apply_rvfi.py",
-        rvfi_srcs = ["//rvfi/rtl:ct_rvfi_gen.v"],
+        rvfi_script = "//rtl:apply_rvfi.py",
+        rvfi_srcs = ["//rtl/rvfi:ct_rvfi_gen.v"],
     )
 
 openc910_ext = module_extension(implementation = _ext_impl)

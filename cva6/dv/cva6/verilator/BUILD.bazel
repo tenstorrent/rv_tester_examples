@@ -11,8 +11,8 @@ load("//dv:verilator_opts.bzl", "CVA6_VOPTS")
 verilog_library(
     name = "cva6_top",
     srcs = [
-        "//dv/cva6:top.sv",
-        "//dv/cva6:cva6_test_harness.sv",
+        "//dv/cva6:harness/top.sv",
+        "//dv/cva6:harness/cva6_test_harness.sv",
     ],
     deps = [
         "//dv/cva6:cva6_rv_tester_sv",

@@ -8,8 +8,8 @@ load("//dv:verilator_opts.bzl", "OPENC910_VOPTS")
 verilog_library(
     name = "openc910_top",
     srcs = [
-        "//dv/openc910:top.sv",
-        "//dv/openc910:openc910_test_harness.sv",
+        "//dv/openc910:harness/top.sv",
+        "//dv/openc910:harness/openc910_test_harness.sv",
     ],
     deps = [
         "//dv/openc910:openc910_rv_tester_sv",

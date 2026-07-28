@@ -7,11 +7,9 @@ load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 # per-harness Vtop.h, so it is compiled inside the cc_binary there.
 exports_files(
     [
-        "top.sv",
-        "cva6_test_harness.sv",
-        "memmap.json",
-        "whisper.json",
-        "cva6_verilator_config.vlt",
+        "harness/top.sv",
+        "harness/cva6_test_harness.sv",
+        "config/cva6_verilator_config.vlt",
     ],
     visibility = ["//visibility:public"],
 )
@@ -32,11 +30,11 @@ topology_gen(
     name = "cva6_topology",
     srcs = [
         "@rv_tester//src/transactors/axi_sw:axi_sw_attrs.yml",
-        "cva6_rv_tester_platform.yml",
-        "cva6_rv_tester_hart.yml",
-        "rv_tester_axi.yml",
+        "config/cva6_rv_tester_platform.yml",
+        "config/cva6_rv_tester_hart.yml",
+        "config/rv_tester_axi.yml",
         "@rv_tester//src:rv_tester_topology",
-        "cva6_topology.yml",
+        "config/cva6_topology.yml",
     ],
 )
 

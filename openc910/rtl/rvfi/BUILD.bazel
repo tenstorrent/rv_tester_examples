@@ -1,0 +1,6 @@
+# RVFI reconstruction source overlaid into @openc910 by //bazel:openc910_ext.bzl
+# (symlinked to rvfi/rtl/ct_rvfi_gen.v inside the fetched tree).
+exports_files(
+    ["ct_rvfi_gen.v"],
+    visibility = ["//visibility:public"],
+)

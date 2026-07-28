@@ -1,10 +1,10 @@
 # Marks bazel/ as a package so //bazel:*.bzl load and //bazel:openc910.BUILD
-# (the @openc910 overlay), the RVFI apply script, and the verilator patch are
-# addressable from the openc910_ext module extension.
+# (the @openc910 overlay) and the verilator patch are addressable from the
+# openc910_ext module extension. The RVFI apply script and the AXI patch (RTL-
+# modifying inputs) live under //rtl.
 exports_files(
     [
         "openc910.BUILD",
-        "apply_rvfi.py",
         "rules_verilator_propagate_exit.patch",
     ],
     visibility = ["//visibility:public"],

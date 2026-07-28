@@ -1,0 +1,13 @@
+# Example-specific hand-written RTL + RTL-modifying inputs, applied to the
+# fetched @openc910 tree by //bazel:openc910_ext.bzl:
+#   apply_rvfi.py               deterministic `ifdef RVFI edits to upstream RTL
+#   rv_tester_axi_sw_128.patch  adapts rv_tester's AXI SW transactor to C910's
+#                               128-bit data bus (root-module archive_override).
+# The RVFI reconstruction RTL is its own package (//rtl/rvfi).
+exports_files(
+    [
+        "apply_rvfi.py",
+        "rv_tester_axi_sw_128.patch",
+    ],
+    visibility = ["//visibility:public"],
+)

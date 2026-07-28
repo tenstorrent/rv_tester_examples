@@ -8,22 +8,23 @@ module(name = "openc910_with_rvtester", version = "0.0.0")
 # ---------------------------------------------------------------------------
 bazel_dep(name = "rv_tester", version = "0.0.0")
 
-# Shared test binaries (generic rv64 images), one copy for all examples.
-bazel_dep(name = "rv_tester_testbins", version = "0.0.0")
+# Shared example assets (generic rv64 test binaries, core-agnostic testbench
+# config, shared build patches) — one copy for all examples.
+bazel_dep(name = "rv_tester_common", version = "0.0.0")
 local_path_override(
-    module_name = "rv_tester_testbins",
+    module_name = "rv_tester_common",
     path = "../common",
 )
 
 archive_override(
     module_name = "rv_tester",
-    urls = ["https://github.com/tenstorrent/rv_tester/archive/287f412b386f02c8e8a8c443c4aee4dd0208c011.tar.gz"],
-    strip_prefix = "rv_tester-287f412b386f02c8e8a8c443c4aee4dd0208c011",
-    integrity = "sha256-2Jbfhn2h/F62nd8O9UkoBAS15c3OzPPyECsVTua9vJY=",
+    urls = ["https://github.com/tenstorrent/rv_tester/archive/298942848f32bc06a20d46e43d544e070709ff81.tar.gz"],
+    strip_prefix = "rv_tester-298942848f32bc06a20d46e43d544e070709ff81",
+    integrity = "sha256-KrGRoryLPqpT963WVd8q451HDF6BawHYQx/xHfAkGz4=",
     patches = [
         # Add a 128-bit (16-byte) read path to the axi_sw memory model; upstream
         # only wires 64/256/512-bit. C910's biu master is 128-bit.
-        "//bazel:rv_tester_axi_sw_128.patch",
+        "//rtl:rv_tester_axi_sw_128.patch",
     ],
     patch_strip = 1,
 )

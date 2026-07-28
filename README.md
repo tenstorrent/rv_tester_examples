@@ -13,9 +13,54 @@ lives here.
 
 | Example | Core | Description |
 |---|---|---|
-| [`cva6/`](cva6/) | [CVA6](https://github.com/openhwgroup/cva6) (`cv64a6_imafdc_sv39`) | Runs CVA6 under `rv_tester` on Verilator, in lockstep against Whisper. See [`cva6/README.md`](cva6/README.md). |
+| [`cva6/`](cva6/) | [CVA6](https://github.com/openhwgroup/cva6) (`cv64a6_imafdc_sv39`) | Runs CVA6 under `rv_tester` on Verilator, in lockstep against Whisper. See [`cva6/docs/README.md`](cva6/docs/README.md). |
+| [`openc910/`](openc910/) | [OpenC910](https://github.com/XUANTIE-RV/openc910) (XuanTie C910, RV64GC) | Runs OpenC910 under `rv_tester` on Verilator, in lockstep against Whisper. See [`openc910/docs/README.md`](openc910/docs/README.md). |
 
-More examples will be added as siblings of `cva6/`.
+More examples are added as siblings of `cva6/` following the standard layout below.
+
+## Repository layout
+
+Shared, core-agnostic assets live once in the [`common/`](common/) module
+(`rv_tester_common`): generic test binaries (`testbins/`), shared testbench
+config (`dv/memmap.json`, `dv/whisper.json`), and the shared Bazel flags
+(`bazelrc/common.bazelrc`, symlinked as each example's `.bazelrc`).
+
+Every example is an **independent Bazel workspace** that follows the same fixed
+skeleton so a new core drops in mechanically:
+
+```
+<example>/
+├── MODULE.bazel        # bzlmod root: deps + overrides + the core fetch extension
+├── .bazelrc            # symlink -> ../common/bazelrc/common.bazelrc
+├── bazel/              # example-specific external fetch/overlay (<core>_ext.bzl, <core>.BUILD, patch)
+├── rtl/                # example-specific hand-written RTL + RTL-modifying inputs (apply scripts, patches)
+├── dv/
+│   ├── verilator_opts.bzl
+│   └── <core>/
+│       ├── BUILD.bazel # topology_gen + rv_tester_gen + dpi_glue
+│       ├── harness/    # top.sv, <core>_test_harness.sv, defines/undefines
+│       ├── config/     # *.yml topology/hart/platform/axi + *.vlt lint config
+│       ├── verilator/  # verilog_library -> verilator_cc_library -> cc_binary
+│       └── testlists/  # smoke sh_test + sim.sh
+├── infra/              # run-bazel.sh (podman wrapper)
+└── docs/               # README + analysis notes
+```
+
+## Adding a new example
+
+1. Copy an existing example directory (e.g. `cva6/`) as `newcore/` and keep the
+   skeleton above.
+2. In `bazel/`, write `newcore_ext.bzl` (+ `newcore.BUILD` overlay) to fetch the
+   upstream core; put any RTL-modifying patches/scripts under `rtl/`.
+3. Fill `dv/newcore/harness/` and `dv/newcore/config/` with the core-specific
+   harness and topology/hart/platform YAML.
+4. Reuse the shared assets via `@rv_tester_common//...` (testbins, `dv/memmap.json`,
+   `dv/whisper.json`); symlink `.bazelrc -> ../common/bazelrc/common.bazelrc`.
+5. Add a CI job mirroring the `cva6`/`openc910` build + smoke jobs.
+
+> Note: bzlmod `single_version_override(patches=...)` only accepts patches from
+> the root module, so each example keeps its own copy of
+> `bazel/rules_verilator_propagate_exit.patch`.
 
 ## Getting Started
 

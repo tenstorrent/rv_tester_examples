@@ -9,10 +9,11 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # CVM_IMAGE=... if you have a local mirror.
 IMAGE="${CVM_IMAGE:-ghcr.io/tenstorrent/cvm:0.1.3}"
 
-# Bazel outputs + fetches. Defaults to a local dir; point it somewhere roomier
-# via the OPENC910_OUTPUT_ROOT env var or the --run-path <dir> flag (flag wins).
-# The transient exec sandbox lives on container-local /tmp (.bazelrc --sandbox_base).
-OUTPUT_ROOT="${OPENC910_OUTPUT_ROOT:-$HOME/.cache/openc910_bazel_root}"
+# Bazel outputs + fetches. Defaults to an in-repo build/ dir (git-ignored);
+# point it somewhere roomier via the OPENC910_OUTPUT_ROOT env var or the
+# --run-path <dir> flag (flag wins). The transient exec sandbox lives on
+# container-local /tmp (.bazelrc --sandbox_base).
+OUTPUT_ROOT="${OPENC910_OUTPUT_ROOT:-$REPO/../build/openc910_bazel_root}"
 
 # Optional leading flag: --run-path <dir> (or --run-path=<dir>).
 if [ "${1:-}" = "--run-path" ]; then
