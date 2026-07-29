@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Tenstorrent USA, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Simulation top: the rv_tester platform plus the openc910 (XuanTie C910) DUT
-// harness, wired together by name (`.*`) through the nets the `RV_TESTER_VARS`
-// macro declares. `cvm_topology_gen` is emitted by the topology_gen genrule.
+// Simulation top: rv_tester platform + CVA6 DUT harness
 module top
     import rv_tester_params::*;
 #(
@@ -27,7 +25,7 @@ module top
         .*
     );
 
-    openc910_test_harness #(
+    cva6_test_harness #(
         .TOPOLOGY(cvm_topology_gen::topology_t),
         .topology(cvm_topology_gen::mods)
     ) dut_harness (

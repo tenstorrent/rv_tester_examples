@@ -1,5 +1,3 @@
-# Shared test binaries used by every rv_tester example (identical generic rv64
-# images), exposed as a local bazel module so each example references one copy.
 exports_files(
     ["hello_world.elf", "infinite.elf", "infinite.S"],
     visibility = ["//visibility:public"],

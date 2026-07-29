@@ -1,33 +1,29 @@
-# Smoke: run the pre-built openc910_tb_verilator in lockstep with Whisper.
-# infinite.elf is an infinite loop at the reset vector; hello_world.elf runs to
-# completion via an HTIF store to `tohost`. sim.sh applies the stdout
-# error-pattern check. Both ELFs are generic rv64 images linked at the reset
-# vector 0x80000000 (the harness drives pad_core0_rvba to match).
 exports_files(
     ["sim.sh"],
     visibility = ["//visibility:public"],
 )
 
+# ELFs are linked at reset vector 0x80000000; harness drives pad_core0_rvba to match.
+
 sh_test(
     name = "hello_world_openc910_verilator",
     srcs = ["//dv/openc910/testlists:sim.sh"],
-    # C910 is a large OoO core; the Verilated cosim run is slow (and slower with
-    # +dbg VCD dumping), so give the smoke tests a generous default timeout.
+    # C910 cosim is slow; generous timeout.
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:hello_world.elf)",
-        "+memmap_json_path=$(location //dv/openc910:memmap.json)",
-        "+whisper_json_path=$(location //dv/openc910:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:hello_world.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nomcm",
         "+eot=tohost",
         "+save_all_files",
     ],
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",
-        "//dv/openc910:memmap.json",
-        "//dv/openc910:whisper.json",
-        "@rv_tester_testbins//testbins:hello_world.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:hello_world.elf",
     ],
 )
 
@@ -37,18 +33,18 @@ sh_test(
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:infinite.elf)",
-        "+memmap_json_path=$(location //dv/openc910:memmap.json)",
-        "+whisper_json_path=$(location //dv/openc910:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:infinite.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=200",
     ],
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",
-        "//dv/openc910:memmap.json",
-        "//dv/openc910:whisper.json",
-        "@rv_tester_testbins//testbins:infinite.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:infinite.elf",
     ],
 )
 

@@ -1,37 +1,27 @@
-# Smoke: run the pre-built cva6_tb_verilator against infinite.elf (an
-# infinite loop at the reset vector) in lockstep with Whisper, terminating
-# after a few instructions. sim.sh applies the stdout error-pattern check.
 exports_files(
     ["sim.sh"],
     visibility = ["//visibility:public"],
 )
 
-# hello_world runs to completion and terminates via an HTIF store to `tohost`
-# (eot=tohost), unlike the infinite loop. Its console output (HTIF putchar)
-# appears on stdout / in test.log. PASSES in lockstep against Whisper.
-#
-# The ELF is built rv64ima_zicsr (no F), so its CRT emits no FP register init and
-# it sidesteps the unmapped-FP-write limitation (the harness ties off rv_tester's
-# frd_valid/frd_addr/frd_wdata; see README "Known limitations"). FP-writing
-# programs still trip the arch check until that mapping exists.
-#
+# ELF is rv64ima_zicsr (no F): its CRT emits no FP init, avoiding the
+# unmapped-FP-write limitation (harness ties off rv_tester frd_*).
 sh_test(
     name = "hello_world_cva6_verilator",
     srcs = ["//dv/cva6/testlists:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:hello_world.elf)",
-        "+memmap_json_path=$(location //dv/cva6:memmap.json)",
-        "+whisper_json_path=$(location //dv/cva6:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:hello_world.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nomcm",
         "+eot=tohost",
         "+save_all_files",
     ],
     data = [
         "//dv/cva6/verilator:cva6_tb_verilator",
-        "//dv/cva6:memmap.json",
-        "//dv/cva6:whisper.json",
-        "@rv_tester_testbins//testbins:hello_world.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:hello_world.elf",
     ],
 )
 
@@ -40,18 +30,18 @@ sh_test(
     srcs = ["//dv/cva6/testlists:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
-        "+load=$(location @rv_tester_testbins//testbins:infinite.elf)",
-        "+memmap_json_path=$(location //dv/cva6:memmap.json)",
-        "+whisper_json_path=$(location //dv/cva6:whisper.json)",
+        "+load=$(location @rv_tester_common//testbins:infinite.elf)",
+        "+memmap_json_path=$(location @rv_tester_common//dv:memmap.json)",
+        "+whisper_json_path=$(location @rv_tester_common//dv:whisper.json)",
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=8",
     ],
     data = [
         "//dv/cva6/verilator:cva6_tb_verilator",
-        "//dv/cva6:memmap.json",
-        "//dv/cva6:whisper.json",
-        "@rv_tester_testbins//testbins:infinite.elf",
+        "@rv_tester_common//dv:memmap.json",
+        "@rv_tester_common//dv:whisper.json",
+        "@rv_tester_common//testbins:infinite.elf",
     ],
 )
 

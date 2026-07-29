@@ -1,7 +1,7 @@
 exports_files(
     [
-        "cva6.BUILD",
-        "rules_verilator_propagate_exit.patch",
+        "apply_rvfi.py",
+        "rv_tester_axi_sw_128.patch",
     ],
     visibility = ["//visibility:public"],
 )

@@ -1,0 +1,37 @@
+build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
+build --action_env=CC=clang --action_env=CXX=clang++ --host_action_env=CC=clang --host_action_env=CXX=clang++
+
+# Sandbox on /tmp (local, network FS prone to hardlink failures).
+build --sandbox_base=/tmp
+
+test --zip_undeclared_test_outputs=false
+
+# Bzlmod opt-in; also sets use_bzlmod define for conditional linking.
+build:bzlmod --enable_bzlmod
+build:bzlmod --define=use_bzlmod=1
+
+# Force-include <bit> for C++20 std::has_single_bit / std::countr_zero.
+build --cxxopt=-include --cxxopt=bit
+build --host_cxxopt=-include --host_cxxopt=bit
+
+# Waive implicit-function-declaration for BCR m4/flex/bison gnulib + googletest.
+build --copt=-Wno-error=implicit-function-declaration --host_copt=-Wno-error=implicit-function-declaration
+
+# -Wall/-Werror on first-party code only. Built-in treat_warnings_as_errors is
+# workspace-global (can't exclude external/*), so use per_file_copt path-negation;
+# the -Wno-error entries cover clang20 warnings from BCR headers pulled into first-party TUs.
+build --per_file_copt=-external/.*@-Wall,-Werror,-Wno-error=deprecated-declarations,-Wno-error=deprecated-literal-operator,-Wno-error=macro-redefined
+
+# UBSan needs link-time -fsanitize and g++ mode to link C++ runtime.
+build:ubsan --features=ubsan
+build:ubsan --linkopt=-fsanitize=undefined
+build:ubsan --linkopt=--driver-mode=g++
+
+# ASan with clang++ link mode.
+build:asan --features=asan
+build:asan --linkopt=--driver-mode=g++
+
+# clang-tidy via erenon/bazel_clang_tidy.
+build:clang-tidy --aspects=@bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
+build:clang-tidy --output_groups=report
+build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=@rv_tester//:clang_tidy_config

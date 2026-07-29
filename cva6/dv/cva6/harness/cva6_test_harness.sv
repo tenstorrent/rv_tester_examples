@@ -14,17 +14,13 @@ module cva6_test_harness
 );
 
     localparam NRET = topology.TOP.PLATFORM.COSIM.RVFI.NRETS[0];
-    // TB_CLK_IDX, CORE_CLK_IDX, AXI_CLK_IDX, SOC_CLK_IDX, REF_CLK_IDX,
-    // COLD_RESET_IDX are imported from rv_tester_params (above).
 
     if (NRET != CVA6Cfg.NrCommitPorts) $error("NRET misconfiguration, needs to be %0d", CVA6Cfg.NrCommitPorts);
     if (topology.TOP.PLATFORM.AXI_SW[AXI_IDX].ADDR_WIDTH != ariane_axi::AddrWidth) $error("AXI_ADDR_WIDTH misconfiguration, needs to be %0d", ariane_axi::AddrWidth);
     if (topology.TOP.PLATFORM.AXI_SW[AXI_IDX].DATA_WIDTH != ariane_axi::DataWidth) $error("AXI_DATA_WIDTH misconfiguration, needs to be %0d", ariane_axi::DataWidth);
     if (topology.TOP.PLATFORM.AXI_SW[AXI_IDX].ID_WIDTH   != ariane_axi::IdWidth  ) $error("AXI_ID_WIDTH   misconfiguration, needs to be %0d", ariane_axi::IdWidth  );
 
-    // ------------------------------------------------------------------
-    // RVFI probe -> retired-instruction types (derived from CVA6 config)
-    // ------------------------------------------------------------------
+    // RVFI probe -> retired-instruction types
     localparam type rvfi_probes_instr_t = `RVFI_PROBES_INSTR_T(CVA6Cfg);
     localparam type rvfi_probes_csr_t   = `RVFI_PROBES_CSR_T(CVA6Cfg);
     localparam type rvfi_probes_t = struct packed {
@@ -39,10 +35,7 @@ module cva6_test_harness
     rvfi_probes_t                             cva6_rvfi_probes;
     rvfi_instr_t [CVA6Cfg.NrCommitPorts-1:0]  rvfi_instr;
 
-    // Monotonic retire tag. rv_tester / Whisper key each retired instruction
-    // on `order`; drive it from a local counter incremented once per valid
-    // retirement (rather than CVA6's own order field) so every retirement
-    // gets a unique, sequentially increasing tag.
+    // Monotonic retire tag: counter incremented per valid retirement
     logic [63:0] retire_tag_q;
 
     logic warm_reset_en_   =  0;
@@ -58,7 +51,8 @@ module cva6_test_harness
             rvfi[i].valid = rvfi_instr[i].valid;
             rvfi[i].comp = '0;
             rvfi[i].last_uop = '1;
-            rvfi[i].order = tag;  // TB-generated retire tag: CVA6's cva6_rvfi never drives .order (Spike-tandem tracks it), so rv_tester's MCM needs us to supply a unique sequence here
+            // cva6_rvfi never drives .order; MCM needs a unique seq, so TB supplies it.
+            rvfi[i].order = tag;
             rvfi[i].insn = rvfi_instr[i].insn;
             rvfi[i].uop = {32'h0, rvfi_instr[i].insn};
             rvfi[i].trap = rvfi_instr[i].trap;
@@ -81,15 +75,11 @@ module cva6_test_harness
             rvfi[i].csr_rmask = '0;
             rvfi[i].vrd_valid = '0;
             rvfi[i].frd_valid = '0;
-            // advance the tag for each valid retirement so a second commit
-            // port in the same cycle gets tag+1
             if (rvfi_instr[i].valid) tag = tag + 64'd1;
         end
     end
 
-    // Base retire tag: bumped once per valid retirement each cycle, held in
-    // reset. Combined with the per-cycle advance above, every retired
-    // instruction gets a unique, monotonically increasing order/tag.
+    // Retire tag: bumped per valid retirement, held in reset
     always_ff @(posedge dut_clk[CORE_CLK_IDX]) begin
         if (reset[COLD_RESET_IDX]) begin
             retire_tag_q <= '0;
@@ -103,9 +93,7 @@ module cva6_test_harness
         end
     end
 
-    // ------------------------------------------------------------------
-    // AXI: CVA6 noc master (ariane_axi) -> rv_tester AXI slot 0
-    // ------------------------------------------------------------------
+    // AXI: CVA6 noc master -> rv_tester AXI slot 0
     ariane_axi::req_t  cva6_req;
     ariane_axi::resp_t cva6_rsp;
 
@@ -193,7 +181,7 @@ module cva6_test_harness
         .rst_ni       ( ~reset[COLD_RESET_IDX]     ),
         .boot_addr_i  ( bootstrap.boot_addr        ),
         .hart_id_i    ( '0                         ),
-        // irq_i[1] = supervisor external, irq_i[0] = machine external
+        // {supervisor external, machine external}
         .irq_i        ( {interrupt[0].sei, interrupt[0].mei} ),
         .ipi_i        ( interrupt[0].ssi || interrupt[0].msi ),
         .time_irq_i   ( interrupt[0].sti || interrupt[0].mti ),
@@ -255,10 +243,9 @@ module cva6_test_harness
             cold_reset <= '0;
         end
     end
-    // FIXME not sure why I need this, should be off by default
     `ifdef VCS
         initial begin
-            $uniq_prior_checkoff();
+            $uniq_prior_checkoff();  // FIXME: unclear why this is needed; should be off by default
         end
     `endif
 
