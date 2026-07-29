@@ -13,14 +13,15 @@ Each example is a self-contained Bazel workspace; the core and `rv_tester` are d
 
 ## Repository Layout
 
-Shared assets in [`common/`](common/) (`rv_tester_common`): testbins, `dv/memmap.json`, `dv/whisper.json`, `bazelrc/common.bazelrc`.
+Shared assets in [`common/`](common/) (`rv_tester_common`): testbins, `dv/memmap.json`, `dv/whisper.json`, `bazelrc/common.bazelrc`, and `bazel/deps.MODULE.bazel` — all non-design dependencies (rv_tester, whisper, verilator, toolchains) declared once and `include()`d by each example.
 
 Each example skeleton:
 ```
 <example>/
-├── MODULE.bazel              # dependencies
+├── MODULE.bazel              # include() shared deps + the core fetch extension
 ├── .bazelrc                  # → ../common/bazelrc/common.bazelrc
 ├── bazel/                    # fetch extensions + patches
+│   └── deps.MODULE.bazel     # → ../../common/bazel/deps.MODULE.bazel
 ├── rtl/                      # RTL modifications
 ├── dv/<core>/
 │   ├── BUILD.bazel           # codegen targets
@@ -38,10 +39,11 @@ Each example skeleton:
 2. Write `bazel/newcore_ext.bzl` to fetch the upstream core.
 3. Add RTL patches in `bazel/` and `rtl/`.
 4. Fill `dv/newcore/{harness,config}/` with harness and YAML config.
-5. Reuse shared assets via `@rv_tester_common//...` and symlink `.bazelrc`.
+5. Reuse shared assets via `@rv_tester_common//...`; symlink `.bazelrc` and `bazel/deps.MODULE.bazel`.
 6. Add CI jobs mirroring `cva6`/`openc910`.
 
-> Note: Each example keeps its own copy of `bazel/rules_verilator_propagate_exit.patch` (bzlmod constraint).
+> Note: `deps.MODULE.bazel` is `include()`d, not a `bazel_dep`, because `*_override` is root-only.
+> Its labels resolve per-example, so each keeps its own `bazel/rules_verilator_propagate_exit.patch`.
 
 ## Quick Start
 
