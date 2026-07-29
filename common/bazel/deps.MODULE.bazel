@@ -1,0 +1,76 @@
+# Shared non-design deps, include()d into each example's root MODULE.bazel so the
+# root-only *_override calls stay valid; labels resolve per including example.
+
+bazel_dep(name = "rv_tester", version = "0.0.0")
+archive_override(
+    module_name = "rv_tester",
+    urls = ["https://github.com/tenstorrent/rv_tester/archive/5475ea679d7bc5ba0580537ec1ba11db6b8f7fbc.tar.gz"],
+    strip_prefix = "rv_tester-5475ea679d7bc5ba0580537ec1ba11db6b8f7fbc",
+    integrity = "sha256-XXWwwfnLkfj/McvikMkz6UBx/zijPdFIs11Z+5pF5GY=",
+)
+
+bazel_dep(name = "rv_tester_common", version = "0.0.0")
+local_path_override(
+    module_name = "rv_tester_common",
+    path = "../common",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "rules_cc", version = "0.0.9")
+bazel_dep(name = "fmt", version = "9.1.0")
+
+bazel_dep(name = "rules_verilator", version = "1.1.0")
+bazel_dep(name = "rules_verilog", version = "1.1.0")
+
+# Propagate verilator's exit code.
+single_version_override(
+    module_name = "rules_verilator",
+    version = "1.1.0",
+    patches = ["//bazel:rules_verilator_propagate_exit.patch"],
+    patch_strip = 1,
+)
+single_version_override(
+    module_name = "verilator",
+    version = "5.046",
+)
+
+bazel_dep(name = "whisper", version = "0.0.0")
+git_override(
+    module_name = "whisper",
+    commit = "1edc51d170f06e461592d579be8c6f3e2b03d41a",
+    remote = "https://github.com/tenstorrent/whisper",
+)
+
+# Referenced by .bazelrc clang-tidy aspect.
+bazel_dep(name = "bazel_clang_tidy", version = "0.0.0")
+archive_override(
+    module_name = "bazel_clang_tidy",
+    urls = ["https://github.com/erenon/bazel_clang_tidy/archive/db677011c7363509a288a9fb3bf0a50830bbf791.tar.gz"],
+    strip_prefix = "bazel_clang_tidy-db677011c7363509a288a9fb3bf0a50830bbf791",
+    integrity = "sha256-cjoiSKMv0j33LPlj9Kf0BEBYy9wJoa1+jvZ/0WwHM0Y=",
+)
+
+# cvm/whisper require 3.9.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.9",
+)
+
+verilator_ext = use_extension("@rules_verilator//:extensions.bzl", "verilator")
+use_repo(verilator_ext, "verilator")
+
+# Non-bzlmod externals; pins in rv_tester's extension.
+rv_tester_external = use_extension("@rv_tester//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")
+use_repo(
+    rv_tester_external,
+    "CoreArchChecker",
+    "cvm",
+    "mem_manager",
+    "opensrc-axi",
+    "opensrc-nlohmann-json",
+    "rules_hdl",
+)
+# Don't re-declare rv_tester_pypi/cvm_pypi: hub names must be unique across modules.

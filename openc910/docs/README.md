@@ -12,7 +12,6 @@ bazel/
   openc910.BUILD             BUILD overlay (upstream has no Bazel)
 rtl/
   apply_rvfi.py              RVFI plumbing edits to upstream RTL (`ifdef RVFI)
-  rv_tester_axi_sw_128.patch adapt rv_tester AXI SW transactor to C910's 128-bit bus
   rvfi/ct_rvfi_gen.v         RVFI reconstruction (iid-keyed retire record)
 dv/openc910/
   openc910_test_harness.sv   C910 ↔ rv_tester shim
