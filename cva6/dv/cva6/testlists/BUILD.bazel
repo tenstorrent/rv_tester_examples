@@ -1,13 +1,8 @@
-exports_files(
-    ["sim.sh"],
-    visibility = ["//visibility:public"],
-)
-
 # ELF is rv64ima_zicsr (no F): its CRT emits no FP init, avoiding the
 # unmapped-FP-write limitation (harness ties off rv_tester frd_*).
 sh_test(
     name = "hello_world_cva6_verilator",
-    srcs = ["//dv/cva6/testlists:sim.sh"],
+    srcs = ["@rv_tester_common//dv:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
         "+load=$(location @rv_tester_common//testbins:hello_world.elf)",
@@ -27,7 +22,7 @@ sh_test(
 
 sh_test(
     name = "infinite_cva6_verilator",
-    srcs = ["//dv/cva6/testlists:sim.sh"],
+    srcs = ["@rv_tester_common//dv:sim.sh"],
     args = [
         "$(location //dv/cva6/verilator:cva6_tb_verilator)",
         "+load=$(location @rv_tester_common//testbins:infinite.elf)",
