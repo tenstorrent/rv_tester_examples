@@ -8,12 +8,14 @@ module ct_rvfi_gen #(
   parameter NENT  = 4,       // ROB create entries (packets) per cycle
   parameter NRET  = 3,       // retire packet lanes (ROB retire width)
   parameter NOUT  = 3,       // per-instruction output records / cycle (3-wide)
-  parameter NWB   = 5,       // register writeback capture ports
+  parameter NWB   = 5,       // integer register writeback capture ports
+  parameter NFWB  = 3,       // FP register writeback capture ports
   parameter MAXPK = 3,       // max instructions per packet
   parameter XLEN  = 64,
   parameter VLEN  = 40,      // C910 virtual/physical address width (byte PC)
   parameter IIDW  = 7,       // ROB iid width (128 entries)
-  parameter PREGW = 7        // physical register index width
+  parameter PREGW = 7,       // integer physical register index width
+  parameter FPREGW = 6       // FP physical register index width (64 entries)
 ) (
   input                       cpuclk,
   input                       rst_b,
@@ -24,15 +26,30 @@ module ct_rvfi_gen #(
   input  [NENT*2-1:0]         disp_ent_num,
   input  [NENT*3-1:0]         disp_slot_len,
   input  [NENT*5-1:0]         disp_slot_rd_areg,
+  // FP-dest architectural register; C910 renames FP and integer destinations
+  // separately, so an FP op carries its arch dest here and leaves rd_areg at 0.
+  input  [NENT*5-1:0]         disp_slot_rd_vareg,
   input  [NENT-1:0]           disp_slot_rd_we,
   input  [NENT-1:0]           disp_slot_rd_fpr,
   input  [NENT*PREGW-1:0]     disp_slot_preg,
+  input  [NENT*FPREGW-1:0]    disp_slot_vreg,
   input  [NENT*32-1:0]        disp_slot_insn,
+  // Privilege mode sampled at dispatch. cp0_yy_priv_mode is live, so an mret
+  // observed at retire already reads the post-mret mode; RVFI wants the mode
+  // the instruction executed in. mret/sret/traps are serializing on C910, so
+  // the dispatch-time mode is the execution mode.
+  input  [1:0]                disp_priv_mode,
 
-  // Register writeback (preg-keyed)
+  // Integer register writeback (preg-keyed)
   input  [NWB-1:0]            wb_vld,
   input  [NWB*PREGW-1:0]      wb_preg,
   input  [NWB*XLEN-1:0]       wb_data,
+
+  // FP register writeback. The C910 fregfile write ports carry a one-hot
+  // destination select rather than an index, so the port is keyed by onehot.
+  input  [NFWB-1:0]           fwb_vld,
+  input  [NFWB*(1<<FPREGW)-1:0] fwb_onehot,
+  input  [NFWB*XLEN-1:0]      fwb_data,
 
   // Retire (per packet lane, program order)
   input  [NRET-1:0]           retire_vld,
@@ -68,21 +85,28 @@ module ct_rvfi_gen #(
 
   localparam DEPTH = (1 << IIDW);
   localparam PDEPTH = (1 << PREGW);
+  localparam FPDEPTH = (1 << FPREGW);
 
   // IID-keyed packet table
   reg [1:0]           t_num    [DEPTH-1:0];
   reg [MAXPK*3-1:0]   t_len    [DEPTH-1:0];
   reg [MAXPK*5-1:0]   t_rd_areg[DEPTH-1:0];
+  reg [MAXPK*5-1:0]   t_rd_vareg[DEPTH-1:0];
   reg [MAXPK-1:0]     t_rd_we  [DEPTH-1:0];
   reg [MAXPK-1:0]     t_rd_fpr [DEPTH-1:0];
   reg [MAXPK*PREGW-1:0] t_preg [DEPTH-1:0];
+  reg [MAXPK*FPREGW-1:0] t_vreg[DEPTH-1:0];
   reg [MAXPK*32-1:0]  t_insn   [DEPTH-1:0];
+  reg [1:0]           t_priv   [DEPTH-1:0];
   // Physical-register-keyed writeback data
   reg [XLEN-1:0]      t_preg_data [PDEPTH-1:0];
   // Per-preg "written" scoreboard (for non-blocking load retire)
   reg [PDEPTH-1:0]    t_preg_ready;
+  // FP equivalents
+  reg [XLEN-1:0]      t_fpreg_data [FPDEPTH-1:0];
+  reg [FPDEPTH-1:0]   t_fpreg_ready;
 
-  integer e, k, w;
+  integer e, k, w, v;
   integer start_slot;
 
   // Capture dispatch metadata + writeback data
@@ -91,16 +115,29 @@ module ct_rvfi_gen #(
     for (e = 0; e < NENT; e = e + 1) begin
       if (disp_ent_vld[e]) begin
         t_num[disp_ent_iid[e*IIDW +: IIDW]] <= disp_ent_num[e*2 +: 2];
+        t_priv[disp_ent_iid[e*IIDW +: IIDW]] <= disp_priv_mode;
         for (k = 0; k < MAXPK; k = k + 1) begin
           t_len   [disp_ent_iid[e*IIDW +: IIDW]][k*3 +: 3]       <= disp_slot_len[((start_slot+k) % NENT)*3 +: 3];
           t_rd_areg[disp_ent_iid[e*IIDW +: IIDW]][k*5 +: 5]      <= disp_slot_rd_areg[((start_slot+k) % NENT)*5 +: 5];
+          t_rd_vareg[disp_ent_iid[e*IIDW +: IIDW]][k*5 +: 5]     <= disp_slot_rd_vareg[((start_slot+k) % NENT)*5 +: 5];
           t_rd_we [disp_ent_iid[e*IIDW +: IIDW]][k]              <= disp_slot_rd_we[(start_slot+k) % NENT];
           t_rd_fpr[disp_ent_iid[e*IIDW +: IIDW]][k]              <= disp_slot_rd_fpr[(start_slot+k) % NENT];
           t_preg  [disp_ent_iid[e*IIDW +: IIDW]][k*PREGW +: PREGW] <= disp_slot_preg[((start_slot+k) % NENT)*PREGW +: PREGW];
+          t_vreg  [disp_ent_iid[e*IIDW +: IIDW]][k*FPREGW +: FPREGW] <= disp_slot_vreg[((start_slot+k) % NENT)*FPREGW +: FPREGW];
           t_insn  [disp_ent_iid[e*IIDW +: IIDW]][k*32 +: 32]      <= disp_slot_insn[((start_slot+k) % NENT)*32 +: 32];
-          if (k < disp_ent_num[e*2 +: 2])
+          if (k < disp_ent_num[e*2 +: 2]) begin
             t_preg_ready[disp_slot_preg[((start_slot+k) % NENT)*PREGW +: PREGW]] <= 1'b0;
+            if (disp_slot_rd_fpr[(start_slot+k) % NENT])
+              t_fpreg_ready[disp_slot_vreg[((start_slot+k) % NENT)*FPREGW +: FPREGW]] <= 1'b0;
+          end
         end
+        // DIAGNOSTIC: the slot index wraps modulo NENT, so if the valid
+        // packets' instruction counts sum past the 4 rename slots we would
+        // silently capture another instruction's preg/metadata. Report it
+        // rather than let it corrupt a retire record unnoticed.
+        if ((start_slot + disp_ent_num[e*2 +: 2]) > NENT)
+          $display("[ct_rvfi_gen] SLOT OVERFLOW: ent=%0d start_slot=%0d num=%0d (NENT=%0d) -- captured metadata aliases slot 0",
+                   e, start_slot, disp_ent_num[e*2 +: 2], NENT);
         start_slot = start_slot + disp_ent_num[e*2 +: 2];
       end
     end
@@ -109,6 +146,16 @@ module ct_rvfi_gen #(
       if (wb_vld[w]) begin
         t_preg_data [wb_preg[w*PREGW +: PREGW]] <= wb_data[w*XLEN +: XLEN];
         t_preg_ready[wb_preg[w*PREGW +: PREGW]] <= 1'b1;
+      end
+    end
+    for (w = 0; w < NFWB; w = w + 1) begin
+      if (fwb_vld[w]) begin
+        for (v = 0; v < FPDEPTH; v = v + 1) begin
+          if (fwb_onehot[w*FPDEPTH + v]) begin
+            t_fpreg_data [v] <= fwb_data[w*XLEN +: XLEN];
+            t_fpreg_ready[v] <= 1'b1;
+          end
+        end
       end
     end
   end
@@ -137,9 +184,18 @@ module ct_rvfi_gen #(
   reg [XLEN-1:0]  f_pcr  [FDEPTH-1:0];
   reg [XLEN-1:0]  f_pcw  [FDEPTH-1:0];
   reg [4:0]       f_rda  [FDEPTH-1:0];
+  reg [4:0]       f_rdva [FDEPTH-1:0];
+  // Result snapshotted into the record. t_preg_data/t_fpreg_data track the
+  // live register file, and a physical register can be freed, reallocated and
+  // rewritten while this record waits behind an older non-blocking load, so
+  // reading them at drain time returns the next owner's value.
+  reg [XLEN-1:0]  f_data [FDEPTH-1:0];
+  reg             f_have [FDEPTH-1:0];
   reg             f_rdwe [FDEPTH-1:0];
+  reg             f_frdwe[FDEPTH-1:0];
   reg             f_rdfpr[FDEPTH-1:0];
   reg [PREGW-1:0] f_preg [FDEPTH-1:0];
+  reg [FPREGW-1:0] f_vreg[FDEPTH-1:0];
   reg             f_trap [FDEPTH-1:0];
   reg [XLEN-1:0]  f_cause[FDEPTH-1:0];
   reg             f_intr [FDEPTH-1:0];
@@ -152,9 +208,14 @@ module ct_rvfi_gen #(
   reg [XLEN-1:0]  p_pcr  [MAXR-1:0];
   reg [XLEN-1:0]  p_pcw  [MAXR-1:0];
   reg [4:0]       p_rda  [MAXR-1:0];
+  reg [4:0]       p_rdva [MAXR-1:0];
+  reg [XLEN-1:0]  p_data [MAXR-1:0];
+  reg             p_have [MAXR-1:0];
   reg             p_rdwe [MAXR-1:0];
+  reg             p_frdwe[MAXR-1:0];
   reg             p_rdfpr[MAXR-1:0];
   reg [PREGW-1:0] p_preg [MAXR-1:0];
+  reg [FPREGW-1:0] p_vreg[MAXR-1:0];
   reg             p_trap [MAXR-1:0];
   reg [XLEN-1:0]  p_cause[MAXR-1:0];
   reg             p_intr [MAXR-1:0];
@@ -163,7 +224,7 @@ module ct_rvfi_gen #(
   reg [31:0]      p_insn [MAXR-1:0];
   integer         p_cnt;
 
-  integer l, oi, di, pi, fi;
+  integer l, oi, di, pi, fi, fj;
   reg [FPTRW-1:0] idx;
   reg [FPTRW-1:0] occ;    // occupancy, computed in pointer width so it wraps
   reg             stopped;
@@ -203,11 +264,39 @@ module ct_rvfi_gen #(
     end
   endfunction
 
+  // FP equivalents; the write ports select the destination one-hot
+  function [XLEN-1:0] fpreg_read;
+    input [FPREGW-1:0] p;
+    integer wi;
+    begin
+      fpreg_read = t_fpreg_data[p];
+      for (wi = 0; wi < NFWB; wi = wi + 1) begin
+        if (fwb_vld[wi] && fwb_onehot[wi*FPDEPTH + p])
+          fpreg_read = fwb_data[wi*XLEN +: XLEN];
+      end
+    end
+  endfunction
+
+  function fpreg_ready_f;
+    input [FPREGW-1:0] p;
+    integer wi;
+    begin
+      fpreg_ready_f = t_fpreg_ready[p];
+      for (wi = 0; wi < NFWB; wi = wi + 1) begin
+        if (fwb_vld[wi] && fwb_onehot[wi*FPDEPTH + p])
+          fpreg_ready_f = 1'b1;
+      end
+    end
+  endfunction
+
   // Push flatten: unpack retiring packets into p_* records
   always @(*) begin
     for (pi = 0; pi < MAXR; pi = pi + 1) begin
       p_pcr[pi]  = {XLEN{1'b0}}; p_pcw[pi]  = {XLEN{1'b0}};
       p_rda[pi]  = 5'b0;         p_rdwe[pi] = 1'b0;
+      p_rdva[pi] = 5'b0;
+      p_data[pi] = {XLEN{1'b0}}; p_have[pi] = 1'b1;
+      p_frdwe[pi]= 1'b0;         p_vreg[pi] = {FPREGW{1'b0}};
       p_rdfpr[pi]= 1'b0;         p_preg[pi] = {PREGW{1'b0}};
       p_trap[pi] = 1'b0;         p_cause[pi]= {XLEN{1'b0}};
       p_intr[pi] = 1'b0;         p_mode[pi] = 2'b0;
@@ -227,18 +316,35 @@ module ct_rvfi_gen #(
             p_pcr[oi]  = {{(XLEN-VLEN){cur_pc[VLEN-1]}}, cur_pc};
             p_pcw[oi]  = {{(XLEN-VLEN){nxt_pc[VLEN-1]}}, nxt_pc};
             p_rda[oi]  = t_rd_areg[iid][k*5 +: 5];
+            p_rdva[oi] = t_rd_vareg[iid][k*5 +: 5];
             // Exclude x0 writes; else the retire FIFO stalls on a preg that never writes back.
+            // FP destinations rename into the separate fregfile, so they are tracked
+            // by p_frdwe/p_vreg rather than the integer preg scoreboard.
             p_rdwe[oi] = t_rd_we[iid][k] && (t_rd_areg[iid][k*5 +: 5] != 5'b0)
                          && !t_rd_fpr[iid][k];
+            p_frdwe[oi]= t_rd_fpr[iid][k];
             p_rdfpr[oi]= t_rd_fpr[iid][k];
             p_preg[oi] = preg;
+            p_vreg[oi] = t_vreg[iid][k*FPREGW +: FPREGW];
+            // Snapshot now if the result is already written back; a preg cannot
+            // be reallocated before its instruction commits, so at retire the
+            // register file still holds this record's own value.
+            if (t_rd_fpr[iid][k]) begin
+              p_have[oi] = fpreg_ready_f(t_vreg[iid][k*FPREGW +: FPREGW]);
+              p_data[oi] = fpreg_read (t_vreg[iid][k*FPREGW +: FPREGW]);
+            end else if (t_rd_we[iid][k] && (t_rd_areg[iid][k*5 +: 5] != 5'b0)) begin
+              p_have[oi] = preg_ready_f(preg);
+              p_data[oi] = preg_read (preg);
+            end
             // Trap/cause/intr on last sub of packet
             if (k == (num - 1)) begin
               p_trap[oi]  = retire_trap[l];
               p_cause[oi] = retire_cause[l*XLEN +: XLEN];
               p_intr[oi]  = retire_intr[l];
             end
-            p_mode[oi] = retire_mode[l*2 +: 2];
+            // retire_mode (live cp0_yy_priv_mode) is retained as a port but not
+            // used: it is post-state for mode-changing instructions.
+            p_mode[oi] = t_priv[iid];
             p_insn[oi] = t_insn[iid][k*32 +: 32];
             // retire_split = non-final uop of a cracked insn (jal/jalr/amo); last_uop=0 so cosim coalesces it.
             p_luop[oi] = ~retire_split[l];
@@ -270,15 +376,19 @@ module ct_rvfi_gen #(
     occ        = ftail - fhead;
     for (di = 0; di < NOUT; di = di + 1) begin
       idx = (fhead + di[FPTRW-1:0]) & {{(FPTRW-FIDXW){1'b0}}, {FIDXW{1'b1}}};
-      if (!stopped && (occ > di[FPTRW-1:0]) &&
-          (!f_rdwe[idx[FIDXW-1:0]] || preg_ready_f(f_preg[idx[FIDXW-1:0]]))) begin
+      if (!stopped && (occ > di[FPTRW-1:0]) && f_have[idx[FIDXW-1:0]]) begin
         o_valid[di]                 = 1'b1;
         o_pc_rdata[di*XLEN +: XLEN] = f_pcr[idx[FIDXW-1:0]];
         o_pc_wdata[di*XLEN +: XLEN] = f_pcw[idx[FIDXW-1:0]];
-        o_rd_addr[di*5 +: 5]        = f_rda[idx[FIDXW-1:0]];
-        o_rd_we[di]                 = f_rdwe[idx[FIDXW-1:0]];
+        // The harness demuxes this single field with rd_fpr into rd_addr /
+        // frd_addr, so select the FP arch dest for FP destinations.
+        o_rd_addr[di*5 +: 5]        = f_rdfpr[idx[FIDXW-1:0]] ? f_rdva[idx[FIDXW-1:0]]
+                                                             : f_rda [idx[FIDXW-1:0]];
+        // The harness gates both the integer and FP field pairs on rd_we and
+        // selects between them with rd_fpr, so rd_we covers either regfile.
+        o_rd_we[di]                 = f_rdwe[idx[FIDXW-1:0]] | f_frdwe[idx[FIDXW-1:0]];
         o_rd_fpr[di]                = f_rdfpr[idx[FIDXW-1:0]];
-        o_rd_wdata[di*XLEN +: XLEN] = f_rdwe[idx[FIDXW-1:0]] ? preg_read(f_preg[idx[FIDXW-1:0]]) : {XLEN{1'b0}};
+        o_rd_wdata[di*XLEN +: XLEN] = f_data[idx[FIDXW-1:0]];
         o_trap[di]                  = f_trap[idx[FIDXW-1:0]];
         o_cause[di*XLEN +: XLEN]    = f_cause[idx[FIDXW-1:0]];
         o_intr[di]                  = f_intr[idx[FIDXW-1:0]];
@@ -306,15 +416,36 @@ module ct_rvfi_gen #(
       fhead <= {FPTRW{1'b0}};
       ftail <= {FPTRW{1'b0}};
     end else begin
+      // Snoop writebacks for records still waiting. Runs before the push loop so
+      // a record written this cycle is not overwritten by a stale-slot match.
+      for (fj = 0; fj < FDEPTH; fj = fj + 1) begin
+        if (!f_have[fj]) begin
+          for (w = 0; w < NWB; w = w + 1)
+            if (f_rdwe[fj] && wb_vld[w] && (wb_preg[w*PREGW +: PREGW] == f_preg[fj])) begin
+              f_data[fj] <= wb_data[w*XLEN +: XLEN];
+              f_have[fj] <= 1'b1;
+            end
+          for (w = 0; w < NFWB; w = w + 1)
+            if (f_frdwe[fj] && fwb_vld[w] && fwb_onehot[w*FPDEPTH + f_vreg[fj]]) begin
+              f_data[fj] <= fwb_data[w*XLEN +: XLEN];
+              f_have[fj] <= 1'b1;
+            end
+        end
+      end
       for (fi = 0; fi < MAXR; fi = fi + 1) begin
         if (fi < p_cnt) begin
           idx                      = (ftail + fi[FPTRW-1:0]) & {{(FPTRW-FIDXW){1'b0}}, {FIDXW{1'b1}}};
           f_pcr  [idx[FIDXW-1:0]] <= p_pcr[fi];
           f_pcw  [idx[FIDXW-1:0]] <= p_pcw[fi];
           f_rda  [idx[FIDXW-1:0]] <= p_rda[fi];
+          f_rdva [idx[FIDXW-1:0]] <= p_rdva[fi];
+          f_data [idx[FIDXW-1:0]] <= p_data[fi];
+          f_have [idx[FIDXW-1:0]] <= p_have[fi];
           f_rdwe [idx[FIDXW-1:0]] <= p_rdwe[fi];
+          f_frdwe[idx[FIDXW-1:0]] <= p_frdwe[fi];
           f_rdfpr[idx[FIDXW-1:0]] <= p_rdfpr[fi];
           f_preg [idx[FIDXW-1:0]] <= p_preg[fi];
+          f_vreg [idx[FIDXW-1:0]] <= p_vreg[fi];
           f_trap [idx[FIDXW-1:0]] <= p_trap[fi];
           f_cause[idx[FIDXW-1:0]] <= p_cause[fi];
           f_intr [idx[FIDXW-1:0]] <= p_intr[fi];

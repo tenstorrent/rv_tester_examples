@@ -197,11 +197,18 @@ conn = [
     ("disp_slot_rd_we", "{idu_rtu_pst_dis_inst3_preg_vld, idu_rtu_pst_dis_inst2_preg_vld, idu_rtu_pst_dis_inst1_preg_vld, idu_rtu_pst_dis_inst0_preg_vld}"),
     ("disp_slot_rd_fpr", "{idu_rtu_pst_dis_inst3_freg_vld, idu_rtu_pst_dis_inst2_freg_vld, idu_rtu_pst_dis_inst1_freg_vld, idu_rtu_pst_dis_inst0_freg_vld}"),
     ("disp_slot_preg", "{idu_rtu_pst_dis_inst3_preg, idu_rtu_pst_dis_inst2_preg, idu_rtu_pst_dis_inst1_preg, idu_rtu_pst_dis_inst0_preg}"),
+    ("disp_slot_rd_vareg", "{idu_rtu_pst_dis_inst3_dstv_reg, idu_rtu_pst_dis_inst2_dstv_reg, idu_rtu_pst_dis_inst1_dstv_reg, idu_rtu_pst_dis_inst0_dstv_reg}"),
+    ("disp_slot_vreg", "{idu_rtu_pst_dis_inst3_vreg, idu_rtu_pst_dis_inst2_vreg, idu_rtu_pst_dis_inst1_vreg, idu_rtu_pst_dis_inst0_vreg}"),
     ("disp_slot_insn", "{rvfi_is_op3, rvfi_is_op2, rvfi_is_op1, rvfi_is_op0}"),
-    # Register writeback (preg-keyed): iu pipe0, iu pipe1, lsu pipe3
+    # Integer register writeback (preg-keyed): iu pipe0, iu pipe1, lsu pipe3
     ("wb_vld", "{lsu_idu_wb_pipe3_wb_preg_vld, iu_idu_ex2_pipe1_wb_preg_vld, iu_idu_ex2_pipe0_wb_preg_vld}"),
     ("wb_preg", "{lsu_idu_wb_pipe3_wb_preg, iu_idu_ex2_pipe1_wb_preg, iu_idu_ex2_pipe0_wb_preg}"),
     ("wb_data", "{lsu_idu_wb_pipe3_wb_preg_data, iu_idu_ex2_pipe1_wb_preg_data, iu_idu_ex2_pipe0_wb_preg_data}"),
+    # FP register writeback: the _fr_ ports are what ct_idu_top feeds to the
+    # fregfile write ports (vfpu pipe6/7 arithmetic, lsu pipe3 FP loads).
+    ("fwb_vld", "{lsu_idu_wb_pipe3_wb_vreg_fr_vld, vfpu_idu_ex5_pipe7_wb_vreg_fr_vld, vfpu_idu_ex5_pipe6_wb_vreg_fr_vld}"),
+    ("fwb_onehot", "{lsu_idu_wb_pipe3_wb_vreg_fr_expand, vfpu_idu_ex5_pipe7_wb_vreg_fr_expand, vfpu_idu_ex5_pipe6_wb_vreg_fr_expand}"),
+    ("fwb_data", "{lsu_idu_wb_pipe3_wb_vreg_fr_data, vfpu_idu_ex5_pipe7_wb_vreg_fr_data, vfpu_idu_ex5_pipe6_wb_vreg_fr_data}"),
     # Retire: NRET=3 packet lanes
     ("retire_vld", "{rtu_pad_retire2, rtu_pad_retire1, rtu_pad_retire0}"),
     ("retire_iid", "{rtu_yy_xx_commit2_iid, rtu_yy_xx_commit1_iid, rtu_yy_xx_commit0_iid}"),
@@ -211,11 +218,12 @@ conn = [
     ("retire_cause", "{128'b0, " + cause0 + "}"),
     ("retire_intr", "{2'b0, rvfi_retire0_int_vld}"),
     ("retire_mode", "{cp0_yy_priv_mode, cp0_yy_priv_mode, cp0_yy_priv_mode}"),
+    ("disp_priv_mode", "cp0_yy_priv_mode"),
 ] + [(n, n) for n in pnames()]
 inst_lines = ",\n".join("  .%-18s (%s)" % (k, v) for (k, v) in conn)
 block = ("\n`ifdef RVFI\n// RVFI export ports (simulation/lockstep only)\n" + pdecls() + "\n\n"
          "// RVFI generator: unpacks C910's up-to-3-instruction ROB packets\n"
-         "ct_rvfi_gen #(.NENT(4), .NRET(3), .NOUT(9), .NWB(3), .MAXPK(3)) x_ct_rvfi_gen (\n" +
+         "ct_rvfi_gen #(.NENT(4), .NRET(3), .NOUT(9), .NWB(3), .NFWB(3), .MAXPK(3)) x_ct_rvfi_gen (\n" +
          inst_lines + "\n);\n`endif\n")
 c = c.replace("\n// &ModuleEnd; @91\nendmodule", block + "\n// &ModuleEnd; @91\nendmodule", 1)
 wr("cpu/rtl/ct_core.v", c)

@@ -48,7 +48,12 @@ module openc910_test_harness
         tag = retire_tag_q;
         for (int i = 0; i < NRET; i++) begin
             rvfi[i].valid    = core0_rvfi_valid[i];
-            rvfi[i].comp     = '0;
+            // rv_tester suppresses the ISS-side instruction-byte record for
+            // compressed ops (bridge.cpp update_whisper_state) but emits the DUT
+            // side unless comp is set, so leaving this at 0 reports every C
+            // instruction as "DUT: <insn> ISS: none". insn[1:0] != 2'b11 is the
+            // architectural test for a 16-bit encoding.
+            rvfi[i].comp     = (core0_rvfi_insn[i*32 +: 2] != 2'b11);
             rvfi[i].last_uop = core0_rvfi_last_uop[i];
             rvfi[i].order    = tag;
             rvfi[i].insn     = core0_rvfi_insn[i*32 +: 32];
@@ -151,7 +156,14 @@ module openc910_test_harness
         axi_req[0].aw.user  = '0;
 
         axi_req[0].w_valid  = biu_pad_wvalid;
-        axi_req[0].w.data   = biu_pad_wdata;
+        // Zero the byte lanes that strb does not enable. AXI leaves them
+        // don't-care and sysmod_mem honours strb, but the htif device model
+        // (rv_tester src/sysmod/htif/htif.cpp) deserializes the whole 64-bit
+        // dword without consulting strb. C910 issues sub-word stores to tohost,
+        // so the stale bytes C910 drives in the unwritten lanes were being
+        // decoded as the HTIF command/payload.
+        for (int b = 0; b < C910_AXI_STRB; b++)
+            axi_req[0].w.data[b*8 +: 8] = biu_pad_wstrb[b] ? biu_pad_wdata[b*8 +: 8] : 8'h00;
         axi_req[0].w.strb   = biu_pad_wstrb;
         axi_req[0].w.last   = biu_pad_wlast;
 

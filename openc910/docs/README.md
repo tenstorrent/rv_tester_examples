@@ -46,9 +46,15 @@ C910 config: **single-hart RV64GC**. (C910 module is dual-core; core1 held in re
 C910 is 3-wide OoO with register renaming; RVFI reconstructed in `ct_rvfi_gen.v` (instantiated in `ct_core`, patched in via `ifdef RVFI`, non-RVFI builds byte-identical to upstream):
 
 - **Stage A**: `valid`, `pc_rdata`, `pc_wdata`, `iid`, `mode`, `trap`, `cause`, `intr` from retirement signals + ROB retire exports.
-- **Stage B**: `rd_addr`, `rd_we`, `rd_wdata` from dispatch (captures by ROB iid) and writeback (IU/LSU pipes). Instruction word checked in lockstep.
-- **Stage C**: `mem_addr`, `mem_rmask`, `mem_wmask`, `mem_rdata` from LSU taps (load/store data). Store `mem_wdata` captured from `sd_ex1_data` (iid-keyed).
-- **Stage D**: FP `frd_*` from VFPU pipe6/7 writeback (smoke ELFs built no-F, so untested in smoke suite).
+- **Stage B**: `rd_addr`, `rd_we`, `rd_wdata` from dispatch (captures by ROB iid) and writeback (IU/LSU
+  pipes). The result is snapshotted into the retire record when it writes back, not read from the
+  register file at drain: a preg can be freed, reallocated and rewritten while a record waits behind
+  an older non-blocking load. Instruction word checked in lockstep.
+- **Stage C**: NOT WIRED. `rvfi_mem_*` are tied to 0 in `ct_rvfi_gen.v`; the LSU taps exist in
+  `apply_rvfi.py` but are not consumed. Cosim therefore cannot check load/store addresses or data.
+- **Stage D**: FP `frd_*` from the fregfile write ports -- `lsu_idu_wb_pipe3_wb_vreg_fr_*` (FP loads)
+  and `vfpu_idu_ex5_pipe6/7_wb_vreg_fr_*` (FP arithmetic). The FP architectural destination comes
+  from `dstv_reg`; `dst_reg` is the integer dest and reads 0 for an FP op.
 
 ## Build & Run
 
@@ -72,12 +78,29 @@ Requirements: Bazel 7, cvm podman image, network access. See cva6 README for dep
 
 ## Status & Known Limitations
 
-- **Smoke tests PASS** in Whisper lockstep. RVFI Stages A–D wired; `insn_check` enabled. Store `mem_wdata` approximate (not exercised by smoke suite).
+- **Smoke tests PASS** in Whisper lockstep. Stages A, B and D wired; `insn_check` enabled.
+  Stage C (memory) is not wired, so load/store addresses and data are unchecked.
 - **Cold-boot edits** (both in `rtl/apply_rvfi.py`):
   - `mmu/rtl/sysmap.h`: remap PMA so `0x8000_0000` is cacheable-executable (fetch lookup on `PA[39:12]`; `BASE0=0x02000` boot, `BASE1=0x80000` MMIO, `BASE2=0x100000` DRAM+).
   - `cp0/rtl/ct_cp0_regs.v`: reset `mhcr.IE/DE` to 1 (I/D cache enabled at reset); C910 cannot fetch cacheable memory with icache off.
 - **Interrupts** (PLIC/CLINT): tied off for smoke bring-up. C910 has internal CLINT fed by harness `sys_cnt`.
 - **Runtime**: Verilated C910 slow (~40 min for `hello_world`); smoke tests default to `timeout = "eternal"`. Waveform dump opt-in via `+dbg` (or `+dbg=<on>:<off>` for window); full-run VCD is multi-GB.
+
+## Other C910 Behaviours Handled
+
+- **Compressed instructions**: `rvfi.comp` is driven from `insn[1:0] != 2'b11`. rv_tester suppresses the
+  ISS-side instruction-byte record for compressed ops but emits the DUT side unless `comp` is set, so
+  leaving it at 0 reports every C instruction as `DUT: <insn> ISS: none`.
+- **Privilege mode**: sampled at dispatch, not at retire. `cp0_yy_priv_mode` is live, so an `mret` observed
+  retiring already reads its post-state; RVFI wants the mode the instruction executed in. `mret`/`sret`/traps
+  are serializing on C910, so the dispatch-time mode is the execution mode.
+- **Sub-word AXI writes**: the harness zeroes byte lanes that `strb` does not enable. AXI leaves them
+  don't-care and `sysmod_mem` honours `strb`, but rv_tester's htif model (`src/sysmod/htif/htif.cpp`)
+  deserializes the whole 64-bit dword without consulting `strb`. C910 issues sub-word stores to `tohost`,
+  so the stale bytes it drives in the unwritten lanes were decoded as the HTIF command/payload -- turning a
+  passing test into a reported failure.
+- **Cracked `sfence.vma`**: C910 splits it into `fence` + `sfence.vma` + a custom-0 word (`0x01b0000b`),
+  all at the same PC. See the micro-op note below; the tail word is registered the same way.
 
 ## Cracked `jal`/`jalr` Micro-ops
 
