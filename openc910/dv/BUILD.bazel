@@ -1,1 +1,47 @@
+load("@cvm//:defs.bzl", "topology_gen")
+load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
 
+# Consumed by the //openc910/dv/verilator sub-package; kept separate so this
+# package needn't load @rules_verilator/@rules_hdl.
+exports_files(
+    [
+        "harness/top.sv",
+        "harness/openc910_test_harness.sv",
+        "config/openc910_verilator_config.vlt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "dpi_glue",
+    srcs = ["//common/dv:gflags.cpp"],
+    deps = ["@cvm//:plusargs"],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//openc910/dv/verilator:__pkg__"],
+)
+
+topology_gen(
+    name = "openc910_topology",
+    srcs = [
+        "@rv_tester//src/transactors/axi_sw:axi_sw_attrs.yml",
+        "config/openc910_rv_tester_platform.yml",
+        "config/openc910_rv_tester_hart.yml",
+        "config/rv_tester_axi.yml",
+        "@rv_tester//src:rv_tester_topology",
+        "config/openc910_topology.yml",
+    ],
+)
+
+rv_tester_gen(
+    name = "openc910_rv_tester",
+    topology = "openc910_topology",
+    csr_spec = "@rv_tester//scripts/csr:csr_spec",
+    project_overrides = "@rv_tester//scripts:project_overrides",
+    pmu_spec = "@rv_tester//src/pmu:pmu_spec",
+    cc_attrs = {
+        "alwayslink": True,
+        "linkstatic": True,
+    },
+    visibility = ["//openc910/dv/verilator:__pkg__"],
+)

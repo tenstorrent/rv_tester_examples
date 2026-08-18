@@ -1,6 +1,0 @@
-module(name = "cva6_with_rvtester", version = "0.0.0")
-
-include("//bazel:deps.MODULE.bazel")
-
-cva6_ext = use_extension("//bazel:cva6_ext.bzl", "cva6_ext")
-use_repo(cva6_ext, "cva6")

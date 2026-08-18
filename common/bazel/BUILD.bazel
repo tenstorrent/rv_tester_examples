@@ -1,6 +1,4 @@
 exports_files(
-    [
-        "openc910.BUILD",
-    ],
+    ["rules_verilator_propagate_exit.patch"],
     visibility = ["//visibility:public"],
 )

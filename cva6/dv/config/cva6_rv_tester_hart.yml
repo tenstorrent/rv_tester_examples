@@ -23,12 +23,16 @@ rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
   NIFETCHES_CUMSUM: [0]
   NIEVICTS: [5]
   NIEVICTS_CUMSUM: [0]
+  # Harness drives no decode slots (+nomcm); older rv_tester ignores these.
+  NDECODES: [1]
+  NDECODES_CUMSUM: [0]
   TOTAL_NREADS: 3
   TOTAL_NINSERTS: 3
   TOTAL_NWRITES: 3
   TOTAL_NBYPASSES: 3
   TOTAL_NIFETCHES: 1
   TOTAL_NIEVICTS: 5
+  TOTAL_NDECODES: 1
 
 rv_tester_pmci_attrs: &rv_tester_pmci_attrs
   PMU_ENABLE: 0

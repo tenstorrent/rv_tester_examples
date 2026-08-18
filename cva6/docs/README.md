@@ -17,7 +17,7 @@ dv/cva6/
   *.yml                      topology/hart/platform/AXI config
   top.sv                     rv_tester + harness, wired by name (.*)
   verilator/                 Verilator build
-  testlists/                 smoke tests (run under @rv_tester_common//dv:sim.sh)
+  testlists/                 smoke tests (run under //common/dv:sim.sh)
 MODULE.bazel                 dependencies (rv_tester, CVA6, whisper, …)
 .bazelrc                      → ../common/bazelrc/common.bazelrc
 infra/run-bazel.sh            → ../../common/infra/run-bazel.sh
@@ -58,10 +58,10 @@ Bazel pulls: `rv_tester` (pinned), `CVA6` (openhwgroup + submodules), `whisper` 
 cd rv_tester_examples/cva6
 
 # Build Verilator model
-./infra/run-bazel.sh build --config=bzlmod //dv/cva6/verilator:cva6_tb_verilator
+./infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:cva6_tb_verilator
 
 # Run smoke
-./infra/run-bazel.sh test  --config=bzlmod //dv/cva6/testlists:all_smoke --test_output=errors
+./infra/run-bazel.sh test  --config=bzlmod //cva6/dv/testlists:all_smoke --test_output=errors
 ```
 
 Key `.bazelrc` settings:
@@ -73,7 +73,7 @@ Key `.bazelrc` settings:
 
 All tests run `cva6_tb_verilator` under the shared `common/dv/sim.sh`, checking each retired instruction against Whisper in lockstep.
 
-**`//dv/cva6/testlists:all_smoke`** (CI suite, passes):
+**`//cva6/dv/testlists:all_smoke`** (CI suite, passes):
 - `infinite_cva6_verilator`: `infinite.elf`, runs 8 instructions (`+max_instr=8`).
 - `hello_world_cva6_verilator`: `hello_world.elf`, runs to HTIF `tohost` completion. ELF built `rv64ima_zicsr` (no F) to avoid FP-write limitation below. **Passes** in lockstep.
 

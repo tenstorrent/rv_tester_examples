@@ -2,7 +2,7 @@
 
 Bazel-based integration examples: connect Tenstorrent's `rv_tester` testbench to open-source RISC-V cores for **lockstep instruction-by-instruction verification against Whisper ISS**.
 
-Each example is a self-contained Bazel workspace; the core and `rv_tester` are dependencies. Only the integration glue (harness, Bazel wiring, config) lives here.
+The repo is one Bazel module (`rv_tester_examples`); each example is a self-contained package tree, with the core and `rv_tester` as dependencies. Only the integration glue (harness, Bazel wiring, config) lives here.
 
 ## Examples
 
@@ -13,74 +13,50 @@ Each example is a self-contained Bazel workspace; the core and `rv_tester` are d
 
 ## Repository Layout
 
-Everything not specific to one core lives in [`common/`](common/) (`rv_tester_common`) and is shared by label or symlink, so each example carries only its own glue:
+All dependencies (rv_tester, whisper, verilator, toolchains) are declared once
+in the repo-root `MODULE.bazel`. Everything shared lives in
+[`common/`](common/), referenced as `//common/...`: the test runner
+(`dv/sim.sh`), `dv/gflags.cpp`, the base Verilator options
+(`dv/verilator_opts.bzl`), testbins, `dv/memmap.json`, `dv/whisper.json`,
+the rules_verilator patch, and the container/bazel wrappers (`infra/`).
 
 ```
-common/
-├── bazel/deps.MODULE.bazel   # non-design deps, include()d by each example
-├── bazel/*.patch             # dependency patches
-├── bazelrc/common.bazelrc    # Bazel flags
-├── dv/sim.sh                 # test runner: error scan, artifact archiving, +dbg
-├── dv/gflags.cpp             # DPI plusarg definitions
-├── dv/verilator_opts.bzl     # COMMON_VOPTS / SW_TESTBENCH_VOPTS
-├── dv/{memmap,whisper}.json  # memory map + Whisper config
-├── infra/bazel.sh            # bazel invocation (no container)
-├── infra/in-container.sh     # podman wrapper (no bazel)
-├── infra/run-bazel.sh        # the two composed, for local dev
-└── testbins/                 # prebuilt test ELFs
-```
-
-Each example skeleton:
-```
+MODULE.bazel                  # ONE module for the whole repo; all deps declared here
+.bazelrc                      # shared Bazel settings
+common/                       # shared code & assets: sim.sh, gflags, verilator opts, testbins, configs, patch, infra
+infra/run-bazel.sh            # -> common/infra/run-bazel.sh (cvm-container wrapper)
 <example>/
-├── MODULE.bazel              # include() shared deps + the core fetch extension
-├── .bazelrc                  # → ../common/bazelrc/common.bazelrc
-├── bazel/                    # fetch extension + BUILD overlay
-│   ├── deps.MODULE.bazel     # → ../../common/bazel/deps.MODULE.bazel
-│   └── *.patch               # → ../../common/bazel/*.patch
+├── bazel/                    # core fetch extension + BUILD overlay
 ├── rtl/                      # RTL modifications
 ├── dv/
-│   ├── verilator_opts.bzl    # core waivers on top of SW_TESTBENCH_VOPTS
-│   └── <core>/
-│       ├── BUILD.bazel       # codegen targets
-│       ├── harness/          # top.sv, test_harness.sv, defines
-│       ├── config/           # *.yml (topology, hart, platform, AXI)
-│       ├── verilator/        # Verilator build
-│       └── testlists/        # smoke tests (run under common's sim.sh)
-├── infra/run-bazel.sh        # → ../../common/infra/run-bazel.sh
+│   ├── BUILD.bazel           # codegen targets
+│   ├── harness/              # top.sv, test_harness.sv, defines
+│   ├── config/               # *.yml (topology, hart, platform, AXI)
+│   ├── verilator/            # Verilator build
+│   └── testlists/            # smoke tests
 └── docs/                     # README
 ```
-
-## Running Bazel
-
-`common/infra/` splits the two concerns that used to sit in one per-example script:
-
-| Script | Does | Use when |
-|---|---|---|
-| `bazel.sh` | Resolves the example workspace containing `$PWD`, manages the output root, execs `bazel-7` | You already have `bazel-7` — notably CI, which runs in the cvm image |
-| `in-container.sh` | Runs any command in the cvm image; knows nothing about Bazel | You need the image for something other than Bazel |
-| `run-bazel.sh` | `bazel.sh` under `in-container.sh` | Local dev (symlinked as `<example>/infra/run-bazel.sh`) |
-
-Output root defaults to `build/<example>_bazel_root` at the repo root; override with `BAZEL_OUTPUT_ROOT` or `--run-path <dir>`. `CVM_IMAGE` overrides the image, `CVM_MOUNTS` adds bind mounts.
 
 ## Adding a New Example
 
 1. Copy an existing example as `newcore/`.
-2. Write `bazel/newcore_ext.bzl` to fetch the upstream core.
-3. Add RTL patches in `bazel/` and `rtl/`.
-4. Fill `dv/newcore/{harness,config}/` with harness and YAML config.
-5. Reuse shared assets via `@rv_tester_common//...` (`dv:sim.sh`, `dv:gflags.cpp`, `dv:verilator_opts.bzl`, testbins, JSON); symlink `.bazelrc`, `bazel/deps.MODULE.bazel`, `bazel/*.patch`, and `infra/run-bazel.sh`.
+2. Write `newcore/bazel/newcore_ext.bzl` to fetch the upstream core, and
+   register it in the root `MODULE.bazel`.
+3. Add RTL patches in `newcore/bazel/` and `newcore/rtl/`.
+4. Fill `newcore/dv/newcore/{harness,config}/` with harness and YAML config.
+5. Reuse shared assets via `//common/...`.
 6. Add CI jobs mirroring `cva6`/`openc910`.
 
-> Note: `deps.MODULE.bazel` is `include()`d, not a `bazel_dep`, because `*_override` is root-only.
-> Its labels resolve per-example, so each keeps its own `bazel/rules_verilator_propagate_exit.patch`.
+> Note: all deps sit directly in the root `MODULE.bazel` (not in an `include()`d
+> file): this repo is also consumed as a `bazel_dep` by rv_tester's integration
+> smoke, and Bazel allows `include()` only in the repo you run it from. The
+> `*_override` pins only apply when this repo is the root.
 
 ## Quick Start
 
 ```bash
-cd cva6
-./infra/run-bazel.sh build --config=bzlmod //dv/cva6/verilator:cva6_tb_verilator
-./infra/run-bazel.sh test  --config=bzlmod //dv/cva6/testlists:all_smoke --test_output=errors
+./infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:cva6_tb_verilator
+./infra/run-bazel.sh test  --config=bzlmod //cva6/dv/testlists:all_smoke --test_output=errors
 ```
 
 See the example's `docs/README.md` for full details.

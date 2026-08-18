@@ -1,0 +1,1 @@
+../common/infra/run-bazel.sh

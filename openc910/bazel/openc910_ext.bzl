@@ -48,9 +48,9 @@ def _ext_impl(_ctx):
         name = "openc910",
         remote = _OPENC910_REMOTE,
         commit = _OPENC910_COMMIT,
-        build_file = "//bazel:openc910.BUILD",
-        rvfi_script = "//rtl:apply_rvfi.py",
-        rvfi_srcs = ["//rtl/rvfi:ct_rvfi_gen.v"],
+        build_file = "//openc910/bazel:openc910.BUILD",
+        rvfi_script = "//openc910/rtl:apply_rvfi.py",
+        rvfi_srcs = ["//openc910/rtl/rvfi:ct_rvfi_gen.v"],
     )
 
 openc910_ext = module_extension(implementation = _ext_impl)
