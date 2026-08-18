@@ -1,13 +1,17 @@
-exports_files(
-    ["sim.sh"],
-    visibility = ["//visibility:public"],
-)
-
 # ELFs are linked at reset vector 0x80000000; harness drives pad_core0_rvba to match.
+
+# C910-specific rv_tester plusargs, applied to every test here:
+#   rvfi_log_36b_uop=false  C910 exports a 32-bit opcode, not the internal 36-bit uop.
+#   rvfi_custom_uop_opcodes C910 cracks jal/jalr; register the link micro-op as a
+#                           known custom op so its insn byte-check is skipped.
+C910_PLUSARGS = [
+    "+rvfi_log_36b_uop=false",
+    "+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP",
+]
 
 sh_test(
     name = "hello_world_openc910_verilator",
-    srcs = ["//dv/openc910/testlists:sim.sh"],
+    srcs = ["@rv_tester_common//dv:sim.sh"],
     # C910 cosim is slow; generous timeout.
     timeout = "eternal",
     args = [
@@ -18,7 +22,7 @@ sh_test(
         "+nomcm",
         "+eot=tohost",
         "+save_all_files",
-    ],
+    ] + C910_PLUSARGS,
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",
         "@rv_tester_common//dv:memmap.json",
@@ -29,7 +33,7 @@ sh_test(
 
 sh_test(
     name = "infinite_openc910_verilator",
-    srcs = ["//dv/openc910/testlists:sim.sh"],
+    srcs = ["@rv_tester_common//dv:sim.sh"],
     timeout = "eternal",
     args = [
         "$(location //dv/openc910/verilator:openc910_tb_verilator)",
@@ -39,7 +43,7 @@ sh_test(
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=200",
-    ],
+    ] + C910_PLUSARGS,
     data = [
         "//dv/openc910/verilator:openc910_tb_verilator",
         "@rv_tester_common//dv:memmap.json",

@@ -21,7 +21,7 @@ path = [
     "**/MODULE.bazel.lock",
     "**/BUILD.bazel",
     "**/*.bzl",
-    "**/cva6.BUILD",
+    "**/*.BUILD",
     "**/*.patch",
     "**/*.sh",
 ]
@@ -47,7 +47,7 @@ SPDX-License-Identifier = "Apache-2.0"
 # Prebuilt RISC-V test programs loaded by the smoke/hello_world tests; binary,
 # so licensing is recorded here rather than inline.
 [[annotations]]
-path = ["**/testlists/*.elf"]
+path = ["**/testbins/*.elf"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "© 2026 Tenstorrent USA, Inc."
 SPDX-License-Identifier = "Apache-2.0"

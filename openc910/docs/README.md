@@ -13,14 +13,17 @@ bazel/
 rtl/
   apply_rvfi.py              RVFI plumbing edits to upstream RTL (`ifdef RVFI)
   rvfi/ct_rvfi_gen.v         RVFI reconstruction (iid-keyed retire record)
+dv/
+  verilator_opts.bzl         C910 lint waivers on top of the shared VOPTS
 dv/openc910/
   openc910_test_harness.sv   C910 ↔ rv_tester shim
   *.yml                      topology/hart/platform/AXI config
   top.sv                     rv_tester + harness, wired by name (.*)
   verilator/                 Verilator build
-  testlists/                 smoke tests + sim.sh
+  testlists/                 smoke tests (run under @rv_tester_common//dv:sim.sh)
 MODULE.bazel                 dependencies (rv_tester, OpenC910, whisper, …)
 .bazelrc                      → ../common/bazelrc/common.bazelrc
+infra/run-bazel.sh            → ../../common/infra/run-bazel.sh
 ```
 
 C910 config: **single-hart RV64GC**. (C910 module is dual-core; core1 held in reset; only core0 checked.)
@@ -77,7 +80,7 @@ Requirements: Bazel 7, cvm podman image, network access. See cva6 README for dep
   - `mmu/rtl/sysmap.h`: remap PMA so `0x8000_0000` is cacheable-executable (fetch lookup on `PA[39:12]`; `BASE0=0x02000` boot, `BASE1=0x80000` MMIO, `BASE2=0x100000` DRAM+).
   - `cp0/rtl/ct_cp0_regs.v`: reset `mhcr.IE/DE` to 1 (I/D cache enabled at reset); C910 cannot fetch cacheable memory with icache off.
 - **Interrupts** (PLIC/CLINT): tied off for smoke bring-up. C910 has internal CLINT fed by harness `sys_cnt`.
-- **Runtime**: Verilated C910 slow (~40 min for `hello_world`); smoke tests default to `timeout = "eternal"`. Waveform dump opt-in via `+dbg` (or `+dbg=<on>:<off>` for window); full-run VCD is multi-GB.
+- **Runtime**: Verilated C910 slow (~40 min for `hello_world`); smoke tests default to `timeout = "eternal"`. Waveform dump opt-in via `sim.sh`'s `+dbg` (or `+dbg=<on>:<off>` for window); full-run VCD is multi-GB.
 
 ## Cracked `jal`/`jalr` Micro-ops
 
@@ -91,4 +94,4 @@ C910 cracks `jal`/`jalr` into two ROB entries at the same PC (two consecutive re
 - **Link micro-op** (`0x0040009f`): computes `ra = pc + 4`. Word is C910-internal encoding (not decodable RISC-V; `inst[6:0]=0x1f` is reserved column, `inst[11:7]=x1`); not a bug.
 - **Redirect micro-op**: carries real jump word, performs control transfer.
 
-rv_tester coalesces on `last_uop`: link supplies `ra` write, redirect supplies opcode/jump. Registered as known custom op via `sim.sh` `+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP`; skips `insn` byte-check for coalesced op; all other instructions checked normally.
+rv_tester coalesces on `last_uop`: link supplies `ra` write, redirect supplies opcode/jump. Registered as known custom op via `C910_PLUSARGS` in `dv/openc910/testlists/BUILD.bazel` (`+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP`); skips `insn` byte-check for coalesced op; all other instructions checked normally.

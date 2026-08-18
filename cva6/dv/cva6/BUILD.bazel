@@ -14,7 +14,7 @@ exports_files(
 
 cc_library(
     name = "dpi_glue",
-    srcs = ["gflags.cpp"],
+    srcs = ["@rv_tester_common//dv:gflags.cpp"],
     deps = ["@cvm//:plusargs"],
     alwayslink = True,
     linkstatic = True,

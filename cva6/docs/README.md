@@ -10,14 +10,17 @@ Integration glue only; CVA6 and `rv_tester` are dependencies.
 bazel/
   cva6_ext.bzl               fetch CVA6 + submodules
   cva6.BUILD                 BUILD overlay (upstream has no Bazel)
+dv/
+  verilator_opts.bzl         CVA6 lint waivers on top of the shared VOPTS
 dv/cva6/
   cva6_test_harness.sv       CVA6 ↔ rv_tester shim
   *.yml                      topology/hart/platform/AXI config
   top.sv                     rv_tester + harness, wired by name (.*)
   verilator/                 Verilator build
-  testlists/                 smoke tests + sim.sh
+  testlists/                 smoke tests (run under @rv_tester_common//dv:sim.sh)
 MODULE.bazel                 dependencies (rv_tester, CVA6, whisper, …)
 .bazelrc                      → ../common/bazelrc/common.bazelrc
+infra/run-bazel.sh            → ../../common/infra/run-bazel.sh
 ```
 
 CVA6 config: **`cv64a6_imafdc_sv39`** (RV64IMAFDC, sv39 MMU, write-through cache).
@@ -68,7 +71,7 @@ Key `.bazelrc` settings:
 
 ## Tests
 
-All tests run `cva6_tb_verilator` under `sim.sh`, checking each retired instruction against Whisper in lockstep.
+All tests run `cva6_tb_verilator` under the shared `common/dv/sim.sh`, checking each retired instruction against Whisper in lockstep.
 
 **`//dv/cva6/testlists:all_smoke`** (CI suite, passes):
 - `infinite_cva6_verilator`: `infinite.elf`, runs 8 instructions (`+max_instr=8`).
@@ -84,5 +87,5 @@ All tests run `cva6_tb_verilator` under `sim.sh`, checking each retired instruct
 
 ## CI & Cleanup
 
-CI at repo root (`.gitlab-ci.yml`, `.github/workflows/ci.yml`); jobs `cd cva6/` then run Bazel.  
-To clean output root: `chmod +w -R <output_root> && rm -rf <output_root>` (must run inside cvm container).
+CI at repo root (`.gitlab-ci.yml`, `.github/workflows/ci.yml`); jobs `cd cva6/` then call `../common/infra/bazel.sh` (the jobs already run in the cvm image, so they skip the container wrapper).  
+To clean output root: `chmod +w -R <output_root> && rm -rf <output_root>` (must run inside cvm container — e.g. `common/infra/in-container.sh chmod +w -R <output_root>`).

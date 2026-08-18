@@ -2,8 +2,8 @@
 
 Thanks for your interest in contributing. This repo collects self-contained
 examples that run open-source RISC-V cores under the `rv_tester` testbench. Each
-example lives in its own top-level directory (currently just
-[`cva6/`](cva6/)) and is a complete Bazel workspace — see that example's
+example lives in its own top-level directory ([`cva6/`](cva6/),
+[`openc910/`](openc910/)) and is a complete Bazel workspace — see that example's
 `README.md` for its architecture, dependencies, and build/run instructions.
 
 ## Bugs and feature requests
@@ -50,8 +50,9 @@ network access).
 ## Adding a new example
 
 Add it as a new top-level directory (a sibling of `cva6/`), self-contained with
-its own `MODULE.bazel`, `bazel/`, `infra/`, and `dv/`. Add a row to the table in
-the top-level [README.md](README.md) linking to it.
+its own `MODULE.bazel`, `bazel/`, `infra/`, and `dv/`. Reuse everything core-agnostic
+from `common/` rather than copying it — see *Adding a New Example* in the top-level
+[README.md](README.md), and add a row to its example table linking to yours.
 
 ## Commit messages
 
