@@ -1,5 +1,10 @@
-# Shared non-design deps, include()d into each example's root MODULE.bazel so the
-# root-only *_override calls stay valid; labels resolve per including example.
+module(name = "rv_tester_examples", version = "0.0.0")
+
+# All deps for both examples, declared once. The *_override pins only take
+# effect when this repo is the root module (its own dev/CI use); consumed as
+# a bazel_dep of rv_tester's integration smoke they are ignored, and the
+# dependency on "rv_tester" resolves to the consuming checkout. include() is
+# not usable here: it is root-only, and this repo must stay dep-consumable.
 
 bazel_dep(name = "rv_tester", version = "0.0.0")
 archive_override(
@@ -7,12 +12,6 @@ archive_override(
     urls = ["https://github.com/tenstorrent/rv_tester/archive/5475ea679d7bc5ba0580537ec1ba11db6b8f7fbc.tar.gz"],
     strip_prefix = "rv_tester-5475ea679d7bc5ba0580537ec1ba11db6b8f7fbc",
     integrity = "sha256-XXWwwfnLkfj/McvikMkz6UBx/zijPdFIs11Z+5pF5GY=",
-)
-
-bazel_dep(name = "rv_tester_common", version = "0.0.0")
-local_path_override(
-    module_name = "rv_tester_common",
-    path = "../common",
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
@@ -28,7 +27,7 @@ bazel_dep(name = "rules_verilog", version = "1.1.0")
 single_version_override(
     module_name = "rules_verilator",
     version = "1.1.0",
-    patches = ["//bazel:rules_verilator_propagate_exit.patch"],
+    patches = ["//common/bazel:rules_verilator_propagate_exit.patch"],
     patch_strip = 1,
 )
 single_version_override(
@@ -59,10 +58,8 @@ python.toolchain(
     python_version = "3.9",
 )
 
-verilator_ext = use_extension("@rules_verilator//:extensions.bzl", "verilator")
-use_repo(verilator_ext, "verilator")
-
-# Non-bzlmod externals; pins in rv_tester's extension.
+# Non-bzlmod externals; pins in rv_tester's extension. Don't re-declare
+# rv_tester_pypi/cvm_pypi: hub names must be unique across modules.
 rv_tester_external = use_extension("@rv_tester//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")
 use_repo(
     rv_tester_external,
@@ -73,4 +70,9 @@ use_repo(
     "opensrc-nlohmann-json",
     "rules_hdl",
 )
-# Don't re-declare rv_tester_pypi/cvm_pypi: hub names must be unique across modules.
+
+cva6_ext = use_extension("//cva6/bazel:cva6_ext.bzl", "cva6_ext")
+use_repo(cva6_ext, "cva6")
+
+openc910_ext = use_extension("//openc910/bazel:openc910_ext.bzl", "openc910_ext")
+use_repo(openc910_ext, "openc910")

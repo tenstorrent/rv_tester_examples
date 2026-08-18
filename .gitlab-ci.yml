@@ -9,10 +9,9 @@ include:
 stages:
     - test
 
-# Each example is a self-contained Bazel workspace in its own top-level dir; the
-# jobs cd into the example and call the shared common/infra/bazel.sh. The image
-# above already provides bazel-7, so no container wrapper is needed here. Output
-# root stays under the example dir (gitignored).
+# One Bazel module for the whole repo; jobs run at the repo root and call the
+# shared common/infra/bazel.sh. The image above already provides bazel-7, so no
+# container wrapper is needed here.
 .test-template:
     variables:
         SCHEDULER_PARAMETERS: "-n 8 -R span[hosts=1]"
@@ -23,9 +22,9 @@ build:
     extends:
         - .test-template
     script:
-        - cd cva6 && ../common/infra/bazel.sh --run-path=./bazel_output_user_root build //dv/cva6/verilator:cva6_tb_verilator --config=bzlmod ${BAZEL_OPTS}
+        - common/infra/bazel.sh --run-path=./bazel_output_user_root build //cva6/dv/verilator:cva6_tb_verilator --config=bzlmod ${BAZEL_OPTS}
     after_script:
-        - chmod +w -R ./cva6/bazel_output_user_root
+        - chmod +w -R ./bazel_output_user_root
     timeout: 3h
 
 smoke:
@@ -33,9 +32,9 @@ smoke:
     extends:
         - .test-template
     script:
-        - cd cva6 && ../common/infra/bazel.sh --run-path=./bazel_output_user_root test //dv/cva6/testlists:all_smoke --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
+        - common/infra/bazel.sh --run-path=./bazel_output_user_root test //cva6/dv/testlists:all_smoke --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
     after_script:
-        - chmod +w -R ./cva6/bazel_output_user_root
+        - chmod +w -R ./bazel_output_user_root
     timeout: 3h
 
 build_openc910:
@@ -43,9 +42,9 @@ build_openc910:
     extends:
         - .test-template
     script:
-        - cd openc910 && ../common/infra/bazel.sh --run-path=./bazel_output_user_root build //dv/openc910/verilator:openc910_tb_verilator --config=bzlmod ${BAZEL_OPTS}
+        - common/infra/bazel.sh --run-path=./bazel_output_user_root build //openc910/dv/verilator:openc910_tb_verilator --config=bzlmod ${BAZEL_OPTS}
     after_script:
-        - chmod +w -R ./openc910/bazel_output_user_root
+        - chmod +w -R ./bazel_output_user_root
     timeout: 3h
 
 smoke_openc910:
@@ -53,7 +52,7 @@ smoke_openc910:
     extends:
         - .test-template
     script:
-        - cd openc910 && ../common/infra/bazel.sh --run-path=./bazel_output_user_root test //dv/openc910/testlists:all_smoke --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
+        - common/infra/bazel.sh --run-path=./bazel_output_user_root test //openc910/dv/testlists:all_smoke --config=bzlmod --build_tests_only --test_output=errors ${BAZEL_OPTS}
     after_script:
-        - chmod +w -R ./openc910/bazel_output_user_root
+        - chmod +w -R ./bazel_output_user_root
     timeout: 3h

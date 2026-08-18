@@ -1,4 +1,4 @@
-load("@rv_tester_common//dv:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
+load("//common/dv:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
 
 # CVA6: enable RVFI, disable PMU (not present), waive stock lint warnings.
 CVA6_VOPTS = SW_TESTBENCH_VOPTS + [

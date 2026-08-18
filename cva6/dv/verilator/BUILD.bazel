@@ -1,15 +1,15 @@
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("//dv:verilator_opts.bzl", "CVA6_VOPTS")
+load("//cva6/dv:verilator_opts.bzl", "CVA6_VOPTS")
 
 verilog_library(
     name = "cva6_top",
     srcs = [
-        "//dv/cva6:harness/top.sv",
-        "//dv/cva6:harness/cva6_test_harness.sv",
+        "//cva6/dv:harness/top.sv",
+        "//cva6/dv:harness/cva6_test_harness.sv",
     ],
     deps = [
-        "//dv/cva6:cva6_rv_tester_sv",
+        "//cva6/dv:cva6_rv_tester_sv",
         "@cva6//:cv64a6_imafdc_sv39",
     ],
     top_module = "top",
@@ -26,8 +26,8 @@ cc_binary(
     srcs = ["@rv_tester//test/sw_testbench:sw_tb.cpp"],
     deps = [
         ":cva6_tb_veri_lib",
-        "//dv/cva6:dpi_glue",
-        "//dv/cva6:cva6_rv_tester_dpi",
+        "//cva6/dv:dpi_glue",
+        "//cva6/dv:cva6_rv_tester_dpi",
         "@cvm//:logger",
         "@cvm//:topology",
         "@rules_verilator//verilator:verilated_runtime",

@@ -55,7 +55,7 @@ def _ext_impl(_ctx):
         remote = _CVA6_REMOTE,
         commit = _CVA6_COMMIT,
         submodules = _SUBMODULES,
-        build_file = "//bazel:cva6.BUILD",
+        build_file = "//cva6/bazel:cva6.BUILD",
     )
 
 cva6_ext = module_extension(implementation = _ext_impl)

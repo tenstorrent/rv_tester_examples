@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Convenience for local dev: bazel.sh inside the cvm image. Symlinked as
-# <example>/infra/run-bazel.sh.
+# infra/run-bazel.sh.
 #
-#   cd cva6 && ./infra/run-bazel.sh build --config=bzlmod //dv/cva6/verilator:...
+#   ./infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:...
 #
 # CI already runs inside the image and calls bazel.sh directly.
 set -euo pipefail

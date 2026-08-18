@@ -1,4 +1,4 @@
-load("@rv_tester_common//dv:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
+load("//common/dv:verilator_opts.bzl", "SW_TESTBENCH_VOPTS")
 
 # openc910: enable RVFI with RVFI macro, disable PMU, waive legacy Verilog-2001 warnings.
 OPENC910_VOPTS = SW_TESTBENCH_VOPTS + [

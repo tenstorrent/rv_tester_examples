@@ -1,15 +1,15 @@
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("//dv:verilator_opts.bzl", "OPENC910_VOPTS")
+load("//openc910/dv:verilator_opts.bzl", "OPENC910_VOPTS")
 
 verilog_library(
     name = "openc910_top",
     srcs = [
-        "//dv/openc910:harness/top.sv",
-        "//dv/openc910:harness/openc910_test_harness.sv",
+        "//openc910/dv:harness/top.sv",
+        "//openc910/dv:harness/openc910_test_harness.sv",
     ],
     deps = [
-        "//dv/openc910:openc910_rv_tester_sv",
+        "//openc910/dv:openc910_rv_tester_sv",
         "@openc910//:openc910_core",
     ],
     top_module = "top",
@@ -32,8 +32,8 @@ cc_binary(
     ],
     deps = [
         ":openc910_tb_veri_lib",
-        "//dv/openc910:dpi_glue",
-        "//dv/openc910:openc910_rv_tester_dpi",
+        "//openc910/dv:dpi_glue",
+        "//openc910/dv:openc910_rv_tester_dpi",
         "@cvm//:logger",
         "@cvm//:topology",
         "@rules_verilator//verilator:verilated_runtime",

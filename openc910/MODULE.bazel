@@ -1,6 +1,0 @@
-module(name = "openc910_with_rvtester", version = "0.0.0")
-
-include("//bazel:deps.MODULE.bazel")
-
-openc910_ext = use_extension("//bazel:openc910_ext.bzl", "openc910_ext")
-use_repo(openc910_ext, "openc910")

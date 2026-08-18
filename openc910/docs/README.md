@@ -20,7 +20,7 @@ dv/openc910/
   *.yml                      topology/hart/platform/AXI config
   top.sv                     rv_tester + harness, wired by name (.*)
   verilator/                 Verilator build
-  testlists/                 smoke tests (run under @rv_tester_common//dv:sim.sh)
+  testlists/                 smoke tests (run under //common/dv:sim.sh)
 MODULE.bazel                 dependencies (rv_tester, OpenC910, whisper, …)
 .bazelrc                      → ../common/bazelrc/common.bazelrc
 infra/run-bazel.sh            → ../../common/infra/run-bazel.sh
@@ -59,17 +59,17 @@ C910 is 3-wide OoO with register renaming; RVFI reconstructed in `ct_rvfi_gen.v`
 cd rv_tester_examples/openc910
 
 # Build Verilator model
-./infra/run-bazel.sh build --config=bzlmod //dv/openc910/verilator:openc910_tb_verilator
+./infra/run-bazel.sh build --config=bzlmod //openc910/dv/verilator:openc910_tb_verilator
 
 # Run smoke
-./infra/run-bazel.sh test  --config=bzlmod //dv/openc910/testlists:all_smoke --test_output=errors
+./infra/run-bazel.sh test  --config=bzlmod //openc910/dv/testlists:all_smoke --test_output=errors
 ```
 
 Requirements: Bazel 7, cvm podman image, network access. See cva6 README for dependency list.
 
 ## Tests
 
-**`//dv/openc910/testlists:all_smoke`**:
+**`//openc910/dv/testlists:all_smoke`**:
 - `infinite_openc910_verilator`: infinite loop, 8 instructions (`+max_instr=8`).
 - `hello_world_openc910_verilator`: runs to HTIF `tohost` completion (~1.3M retirements in lockstep). **Passes** with RVFI Stages A–D wired and `insn_check` enabled; store `mem_wdata` approximate only.
 
