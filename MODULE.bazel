@@ -58,6 +58,20 @@ python.toolchain(
     python_version = "3.9",
 )
 
+# RiescueD's pypi deps. Own hub: rv_tester_pypi/cvm_pypi belong to rv_tester's
+# pip.parse and hub names must be unique across modules.
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "riescue_pypi",
+    python_version = "3.9",
+    requirements_lock = "//riescue_test_gen/bazel:requirements.txt",
+)
+use_repo(pip, "riescue_pypi")
+
+# RiescueD framework + prebuilt RISC-V bare-metal GCC it compiles with.
+riescue_ext = use_extension("//riescue_test_gen/bazel:riescue_ext.bzl", "riescue_ext")
+use_repo(riescue_ext, "riescue", "riscv_none_elf_gcc")
+
 # Non-bzlmod externals; pins in rv_tester's extension. Don't re-declare
 # rv_tester_pypi/cvm_pypi: hub names must be unique across modules.
 rv_tester_external = use_extension("@rv_tester//bazel:external_deps_ext.bzl", "rv_tester_external_deps_ext")

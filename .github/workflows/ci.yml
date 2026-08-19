@@ -37,6 +37,7 @@ jobs:
         run: |
           common/infra/bazel.sh --run-path=./bazel_output_user_root \
             test //cva6/dv/testlists:all_smoke \
+              //riescue_test_gen:riescue_smoke_cva6_verilator \
             --config=bzlmod --build_tests_only --test_output=errors --jobs=8
 
   build_openc910:
@@ -61,4 +62,5 @@ jobs:
         run: |
           common/infra/bazel.sh --run-path=./bazel_output_user_root \
             test //openc910/dv/testlists:all_smoke \
+              //riescue_test_gen:riescue_smoke_openc910_verilator \
             --config=bzlmod --build_tests_only --test_output=errors --jobs=8

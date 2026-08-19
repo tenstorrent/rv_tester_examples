@@ -1,0 +1,22 @@
+# Ad-hoc runners: run any ELF on a core testbench in rv_tester lockstep:
+#   ./infra/run-bazel.sh run --config=bzlmod run_openc910 -- path/to.elf [+plusarg...]
+# The ELF path is relative to the invocation directory. Tagged manual so
+# wildcard builds don't pull in the Verilator testbenches.
+
+load("//common/dv:sim_test.bzl", "DEFAULT_PLUSARGS", "rv_tester_sim_run")
+load("//openc910/dv:plusargs.bzl", "C910_PLUSARGS")
+
+rv_tester_sim_run(
+    name = "run_openc910",
+    plusargs = DEFAULT_PLUSARGS + C910_PLUSARGS,
+    tags = ["manual"],
+    tb = "//openc910/dv/verilator:openc910_tb_verilator",
+    whisper_json = "//openc910/dv:openc910_whisper.json",
+)
+
+rv_tester_sim_run(
+    name = "run_cva6",
+    tags = ["manual"],
+    tb = "//cva6/dv/verilator:cva6_tb_verilator",
+    whisper_json = "//cva6/dv:cva6_whisper.json",
+)

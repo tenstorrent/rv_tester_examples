@@ -1,54 +1,27 @@
-# ELFs are linked at reset vector 0x80000000; harness drives pad_core0_rvba to match.
+load("//common/dv:sim_test.bzl", "DEFAULT_PLUSARGS", "rv_tester_sim_test")
+load("//openc910/dv:plusargs.bzl", "C910_PLUSARGS")
 
-# C910-specific rv_tester plusargs, applied to every test here:
-#   rvfi_log_36b_uop=false  C910 exports a 32-bit opcode, not the internal 36-bit uop.
-#   rvfi_custom_uop_opcodes C910 cracks jal/jalr; register the link micro-op as a
-#                           known custom op so its insn byte-check is skipped.
-C910_PLUSARGS = [
-    "+rvfi_log_36b_uop=false",
-    "+rvfi_custom_uop_opcodes=0x0040009f:CUSTOM_MICRO_OP",
-]
+# ELFs are linked at reset vector 0x80000000; harness drives pad_core0_rvba
+# to match. C910 cosim is slow; generous timeouts.
 
-sh_test(
+rv_tester_sim_test(
     name = "hello_world_openc910_verilator",
-    srcs = ["//common/dv:sim.sh"],
-    # C910 cosim is slow; generous timeout.
     timeout = "eternal",
-    args = [
-        "$(location //openc910/dv/verilator:openc910_tb_verilator)",
-        "+load=$(location //common/testbins:hello_world.elf)",
-        "+memmap_json_path=$(location //common/dv:memmap.json)",
-        "+whisper_json_path=$(location //common/dv:whisper.json)",
-        "+nomcm",
-        "+eot=tohost",
-    ] + C910_PLUSARGS,
-    data = [
-        "//openc910/dv/verilator:openc910_tb_verilator",
-        "//common/dv:memmap.json",
-        "//common/dv:whisper.json",
-        "//common/testbins:hello_world.elf",
-    ],
+    elf = "//common/testbins:hello_world.elf",
+    plusargs = DEFAULT_PLUSARGS + C910_PLUSARGS,
+    tb = "//openc910/dv/verilator:openc910_tb_verilator",
 )
 
-sh_test(
+rv_tester_sim_test(
     name = "infinite_openc910_verilator",
-    srcs = ["//common/dv:sim.sh"],
     timeout = "eternal",
-    args = [
-        "$(location //openc910/dv/verilator:openc910_tb_verilator)",
-        "+load=$(location //common/testbins:infinite.elf)",
-        "+memmap_json_path=$(location //common/dv:memmap.json)",
-        "+whisper_json_path=$(location //common/dv:whisper.json)",
+    elf = "//common/testbins:infinite.elf",
+    plusargs = [
         "+nostandalone",
         "+eot=max_instr",
         "+max_instr=200",
     ] + C910_PLUSARGS,
-    data = [
-        "//openc910/dv/verilator:openc910_tb_verilator",
-        "//common/dv:memmap.json",
-        "//common/dv:whisper.json",
-        "//common/testbins:infinite.elf",
-    ],
+    tb = "//openc910/dv/verilator:openc910_tb_verilator",
 )
 
 test_suite(
