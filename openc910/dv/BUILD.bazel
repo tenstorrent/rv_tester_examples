@@ -1,5 +1,6 @@
 load("@cvm//:defs.bzl", "topology_gen")
 load("@rv_tester//bazel:defs.bzl", "rv_tester_gen")
+load("//common/dv:whisper_override.bzl", "whisper_json_override")
 
 # Consumed by the //openc910/dv/verilator sub-package; kept separate so this
 # package needn't load @rules_verilator/@rules_hdl.
@@ -19,6 +20,20 @@ cc_library(
     alwayslink = True,
     linkstatic = True,
     visibility = ["//openc910/dv/verilator:__pkg__"],
+)
+
+# Shared whisper.json corrected to mirror this DUT, for tests whose boot code
+# reads misa/mstatus (e.g. RiescueD ELFs): add "su" to "isa", set X (T-Head
+# extensions) in misa, and reset mstatus with MPP=3, SPP=1.
+whisper_json_override(
+    name = "openc910_whisper_json",
+    out = "openc910_whisper.json",
+    substitutions = {
+        "0x800000000014112d": "0x800000000094112d",
+        "rv64imafdc": "rv64imafdcsu",
+        "0x0000000a00000000": "0x0000000a00001900",
+    },
+    visibility = ["//visibility:public"],
 )
 
 topology_gen(

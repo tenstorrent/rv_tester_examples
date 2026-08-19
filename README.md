@@ -11,12 +11,18 @@ The repo is one Bazel module (`rv_tester_examples`); each example is a self-cont
 | [`cva6/`](cva6/) | [CVA6](https://github.com/openhwgroup/cva6) `cv64a6_imafdc_sv39` | See [`cva6/docs/README.md`](cva6/docs/README.md) |
 | [`openc910/`](openc910/) | [OpenC910](https://github.com/XUANTIE-RV/openc910) RV64GC | See [`openc910/docs/README.md`](openc910/docs/README.md) |
 
+Test stimulus beyond the prebuilt testbins comes from
+[`riescue_test_gen/`](riescue_test_gen/): [RiescueD](https://github.com/tenstorrent/riescue)
+generates test ELFs at build time that run on either core — see
+[`riescue_test_gen/docs/README.md`](riescue_test_gen/docs/README.md).
+
 ## Repository Layout
 
 All dependencies (rv_tester, whisper, verilator, toolchains) are declared once
 in the repo-root `MODULE.bazel`. Everything shared lives in
 [`common/`](common/), referenced as `//common/...`: the test runner
-(`dv/sim.sh`), `dv/gflags.cpp`, the base Verilator options
+(`dv/sim.sh`), the (elf, tb)-parameterized test/run wrappers
+(`dv/sim_test.bzl`, `dv/sim_run.sh`), `dv/gflags.cpp`, the base Verilator options
 (`dv/verilator_opts.bzl`), testbins, `dv/memmap.json`, `dv/whisper.json`,
 the rules_verilator patch, and the container/bazel wrappers (`infra/`).
 
@@ -25,6 +31,7 @@ MODULE.bazel                  # ONE module for the whole repo; all deps declared
 .bazelrc                      # shared Bazel settings
 common/                       # shared code & assets: sim.sh, gflags, verilator opts, testbins, configs, patch, infra
 infra/run-bazel.sh            # -> common/infra/run-bazel.sh (cvm-container wrapper)
+riescue_test_gen/             # RiescueD-generated test ELFs + run targets for both cores
 <example>/
 ├── bazel/                    # core fetch extension + BUILD overlay
 ├── rtl/                      # RTL modifications
@@ -57,6 +64,9 @@ infra/run-bazel.sh            # -> common/infra/run-bazel.sh (cvm-container wrap
 ```bash
 ./infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:cva6_tb_verilator
 ./infra/run-bazel.sh test  --config=bzlmod //cva6/dv/testlists:all_smoke --test_output=errors
+
+# Run any ELF on a core ad hoc (see the root BUILD.bazel):
+./infra/run-bazel.sh run   --config=bzlmod run_cva6 -- path/to/any.elf
 ```
 
 See the example's `docs/README.md` for full details.

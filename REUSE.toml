@@ -24,6 +24,7 @@ path = [
     "**/*.BUILD",
     "**/*.patch",
     "**/*.sh",
+    "**/requirements.txt",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "© 2026 Tenstorrent USA, Inc."
