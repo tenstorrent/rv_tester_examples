@@ -28,6 +28,7 @@ independent of this package — see the root `BUILD.bazel`):
 ```bash
 ./infra/run-bazel.sh run --config=bzlmod run_openc910 -- path/to/any.elf
 ./infra/run-bazel.sh run --config=bzlmod run_cva6     -- path/to/any.elf +dbg
+./infra/run-bazel.sh run --config=bzlmod run_cva6 --run-path results/foo --run-args +load=path/to/any.elf +dbg +max_instr=50000
 ```
 
 The declared tests here and the root runners are built on the shared
@@ -103,7 +104,7 @@ Whisper, and cva6) say 1. **Expected to FAIL on openc910** until the RTL is
 fixed — it is tagged `manual` so suites and wildcards stay green:
 
 ```bash
-./infra/run-bazel.sh test --config=bzlmod //riescue_test_gen:openc910_issue_69_openc910_verilator  # FAILS: DUT 0x2, ISS 0x1
+./infra/run-bazel.sh run  --config=bzlmod //riescue_test_gen:openc910_issue_69_openc910_verilator --run-path results/issue_69 -- +nometrics
 ./infra/run-bazel.sh test --config=bzlmod //riescue_test_gen:openc910_issue_69_cva6_verilator      # control: PASSES
 ```
 
