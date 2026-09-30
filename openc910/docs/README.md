@@ -59,10 +59,10 @@ C910 is 3-wide OoO with register renaming; RVFI reconstructed in `ct_rvfi_gen.v`
 cd rv_tester_examples/openc910
 
 # Build Verilator model
-./infra/run-bazel.sh build --config=bzlmod //openc910/dv/verilator:openc910_tb_verilator
+../infra/run-bazel.sh build --config=bzlmod //openc910/dv/verilator:openc910_tb_verilator
 
 # Run smoke
-./infra/run-bazel.sh test  --config=bzlmod //openc910/dv/testlists:all_smoke --test_output=errors
+../infra/run-bazel.sh test  --config=bzlmod //openc910/dv/testlists:all_smoke --test_output=errors
 ```
 
 Requirements: Bazel 7, cvm podman image, network access. See cva6 README for dependency list.

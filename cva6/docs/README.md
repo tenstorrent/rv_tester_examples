@@ -58,10 +58,10 @@ Bazel pulls: `rv_tester` (pinned), `CVA6` (openhwgroup + submodules), `whisper` 
 cd rv_tester_examples/cva6
 
 # Build Verilator model
-./infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:cva6_tb_verilator
+../infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:cva6_tb_verilator
 
 # Run smoke
-./infra/run-bazel.sh test  --config=bzlmod //cva6/dv/testlists:all_smoke --test_output=errors
+../infra/run-bazel.sh test  --config=bzlmod //cva6/dv/testlists:all_smoke --test_output=errors
 ```
 
 Key `.bazelrc` settings:
@@ -77,8 +77,8 @@ All tests run `cva6_tb_verilator` under the shared `common/dv/sim.sh`, checking 
 - `infinite_cva6_verilator`: `infinite.elf`, runs 8 instructions (`+max_instr=8`).
 - `hello_world_cva6_verilator`: `hello_world.elf`, runs to HTIF `tohost` completion. ELF built `rv64ima_zicsr` (no F) to avoid FP-write limitation below. **Passes** in lockstep.
 
-**Artifacts** (on failure or with `--test_arg=+save_all_files`):
-- `h0_dut_rvfi.log`, `trace_hart_0.dasm`, `h0_bridge.log`, `iss_cmd.log`, `iss_cosim.log`, `whisper_cosim.json`, `sim_stdout.log`.
+**Artifacts** (on failure or with `--run-args +save_all_files`):
+- `h0_dut_rvfi.log`, `trace_hart_0.dasm`, `h0_bridge.log`, `iss_cmd.log`, `iss_cosim.log`, `whisper_cosim.json`, `run.log`.
 
 ## Known Limitations
 

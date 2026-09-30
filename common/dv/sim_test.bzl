@@ -57,10 +57,11 @@ def rv_tester_sim_run(
         memmap_json = _DEFAULT_MEMMAP,
         plusargs = DEFAULT_PLUSARGS,
         **kwargs):
-    """`bazel run` target: bazel run <name> -- <path/to.elf> [+plusarg...]
+    """`bazel run` target: bazel run <name> -- <path/to.elf>|+load=<path/to.elf> [+plusarg...]
 
     The ELF path is resolved against the invocation directory; simulator
-    scratch files land there too. Same knobs as rv_tester_sim_test minus elf.
+    scratch files land there too unless +run_path=<dir> is given. Same knobs
+    as rv_tester_sim_test minus elf.
     """
     native.sh_binary(
         name = name,

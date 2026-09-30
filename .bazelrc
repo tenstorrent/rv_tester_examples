@@ -5,6 +5,7 @@ build --action_env=CC=clang --action_env=CXX=clang++ --host_action_env=CC=clang 
 build --sandbox_base=/tmp
 
 test --zip_undeclared_test_outputs=false
+run  --zip_undeclared_test_outputs=false
 
 # Bzlmod opt-in; also sets use_bzlmod define for conditional linking.
 build:bzlmod --enable_bzlmod

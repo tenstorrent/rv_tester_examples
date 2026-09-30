@@ -65,8 +65,51 @@ riescue_test_gen/             # RiescueD-generated test ELFs + run targets for b
 ./infra/run-bazel.sh build --config=bzlmod //cva6/dv/verilator:cva6_tb_verilator
 ./infra/run-bazel.sh test  --config=bzlmod //cva6/dv/testlists:all_smoke --test_output=errors
 
-# Run any ELF on a core ad hoc (see the root BUILD.bazel):
+# Run any ELF on a core ad hoc (see "Running an arbitrary ELF" below):
 ./infra/run-bazel.sh run   --config=bzlmod run_cva6 -- path/to/any.elf
+```
+
+### Running an arbitrary ELF
+
+The root `BUILD.bazel` declares one ad-hoc runner per core, `//:run_cva6` and
+`//:run_openc910`. Three rules:
+
+1. **The ELF** goes after `--` (or `--run-args`) `+load=path/to/any.elf`.
+2. **The target** goes before `--run-path`/`--run-args`/`--`. From the repo
+   root the short name `run_cva6` works; from any subdirectory spell it as a
+   full label, `//:run_cva6`.
+3. **The target can be omitted** when you are inside a core's directory
+   (`cva6/`, `openc910/`, or anything beneath them): the wrapper picks
+   `//:run_<core>` from the first path component and prints which one it
+   chose.
+
+```bash
+./infra/run-bazel.sh run --config=bzlmod run_cva6 -- +load=path/to/any.elf +max_instr=50000
+./infra/run-bazel.sh run --config=bzlmod //:run_openc910 -- +load=path/to/any.elf +nometrics
+
+# from openc910/, target inferred (//:run_openc910):
+../infra/run-bazel.sh run --config=bzlmod --run-path abcd -- +nometrics +load=path/to/any.elf
+```
+
+### Extra simulator arguments
+
+Pass `+plusargs` to a test or run target 
+
+```bash
+./infra/run-bazel.sh test --config=bzlmod //cva6/dv/testlists:hello_world_cva6_verilator -- +dbg=1000:5000 +save_all_files
+```
+
+
+### Where the output goes
+
+By default the simulator writes its logs (`h0_dut_rvfi.log`, `iss_cosim.log`,
+...), dumps, and `run.log`  into its working directory (bazel-testlogs)
+To collect them elsewhere, pass `--run-path`,
+
+```bash
+./infra/run-bazel.sh run  --config=bzlmod //riescue_test_gen:openc910_issue_69_openc910_verilator --run-path results/issue_69 -- +nometrics
+./infra/run-bazel.sh run  --config=bzlmod run_cva6 --run-path results/foo --run-args +load=path/to/foo.elf +dbg
+./infra/run-bazel.sh test --config=bzlmod //cva6/dv/testlists:hello_world_cva6_verilator --run-path results/hello
 ```
 
 See the example's `docs/README.md` for full details.
