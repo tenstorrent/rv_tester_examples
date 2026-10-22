@@ -46,7 +46,7 @@ CVA6 config: **`cv64a6_imafdc_sv39`** (RV64IMAFDC, sv39 MMU, write-through cache
 | Item | Detail |
 |---|---|
 | **Bazel 7** | `bazel-7` in cvm image; system `bazel` 6.5 will not work. |
-| **Podman + cvm** | `aus-gitlab.local.tenstorrent.com:5005/riscv/dv/cvm:0.1.3` (or `ghcr.io/tenstorrent/cvm:0.1.3`). |
+| **Podman + cvm** | `aus-gitlab.local.tenstorrent.com:5005/riscv/dv/cvm:0.1.5` (or `ghcr.io/tenstorrent/cvm:0.1.5`). |
 | **Network** | aus-gitlab, github.com, bcr.bazel.build. |
 | **Disk** | Output on regression area; first build is large. |
 
