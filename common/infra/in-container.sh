@@ -12,7 +12,7 @@ set -euo pipefail
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 REPO_ROOT="$(cd "$(dirname "$SELF")/../.." && pwd)"
 
-IMAGE="${CVM_IMAGE:-ghcr.io/tenstorrent/cvm:0.1.3}"
+IMAGE="${CVM_IMAGE:-ghcr.io/tenstorrent/cvm:0.1.5}"
 
 mounts=(-v "$REPO_ROOT:$REPO_ROOT")
 for m in ${CVM_MOUNTS:-}; do

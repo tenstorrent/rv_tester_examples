@@ -9,9 +9,9 @@ module(name = "rv_tester_examples", version = "0.0.0")
 bazel_dep(name = "rv_tester", version = "0.0.0")
 archive_override(
     module_name = "rv_tester",
-    urls = ["https://github.com/tenstorrent/rv_tester/archive/5475ea679d7bc5ba0580537ec1ba11db6b8f7fbc.tar.gz"],
-    strip_prefix = "rv_tester-5475ea679d7bc5ba0580537ec1ba11db6b8f7fbc",
-    integrity = "sha256-XXWwwfnLkfj/McvikMkz6UBx/zijPdFIs11Z+5pF5GY=",
+    urls = ["https://github.com/tenstorrent/rv_tester/archive/4c6f02d13a771b93ff54f1f184aa46a0f90240f2.tar.gz"],
+    strip_prefix = "rv_tester-4c6f02d13a771b93ff54f1f184aa46a0f90240f2",
+    integrity = "sha256-8Coqzjyc3Q+Hte3se/AgTvWhE++bsJaT5TO03IDBXfg=",
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
@@ -38,7 +38,7 @@ single_version_override(
 bazel_dep(name = "whisper", version = "0.0.0")
 git_override(
     module_name = "whisper",
-    commit = "1edc51d170f06e461592d579be8c6f3e2b03d41a",
+    commit = "40d640dc4bb9aeea39a6f7783c0174e209fab3d9",
     remote = "https://github.com/tenstorrent/whisper",
 )
 
